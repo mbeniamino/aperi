@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=bopen
+GenericName=Resource opener
+Terminal=false
+Exec=bopen %F
+Type=Application
+Categories=Utility;
