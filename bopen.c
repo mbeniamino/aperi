@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <magic.h>
+#include <sys/stat.h>
 #include <gtk/gtk.h>
 
 int read_to(FILE* f, const char sep, char **result) {
@@ -50,6 +50,23 @@ int next_line(FILE* f) {
     return 0;
 }
 
+char* extension(const char* path) {
+    int idx = -1;
+    int last_dot = -1;
+    char ch;
+    while(ch = path[++idx]) {
+        if(ch == '.') last_dot = idx;
+        else if (ch == '/') last_dot = -1;
+    }
+    if (last_dot == -1) last_dot = idx - 1;
+    size_t path_ln = strlen(path);
+    int target_ln = path_ln - last_dot;
+    char* res = malloc(target_ln);
+    strncpy(res, path+last_dot+1, target_ln);
+    return res;
+}
+
+// Code used for the Gtk dialog ===============================================
 typedef struct Context {
     char* filepath;
     GFile* file;
@@ -83,31 +100,26 @@ activate (GtkApplication *app,
                            "response",
                            G_CALLBACK(app_chooser_response_cb),
                            context);
+          // To make the chooser open as a floating window for some reason we have to
+          // show the parent window. We can hide it just after.
           gtk_widget_show((GtkWidget*)window);
           gtk_widget_show(chooser);
           gtk_widget_hide((GtkWidget*)window);
 }
+// ============================================================================
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         printf("Usage: %s <file>\n", argv[0]);
         exit(0);
     }
-    magic_t magic_cookie = magic_open(MAGIC_MIME_TYPE);
-    if (!magic_cookie) {
-        fprintf(stderr, "Couldn't allocate magic cookie. Exiting...\n");
-        exit(1);
+    const char* path = argv[1];
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0) {
+        fprintf(stderr, "Couldn't stat %s. Exiting.", path);
+        exit(2);
     }
-    if (magic_load(magic_cookie, 0) != 0) {
-        fprintf(stderr, "Couldn't load magic db. Exiting...\n");
-        exit(1);
-    }
-    const char* detected_mime;
-    if ((detected_mime = magic_file(magic_cookie, argv[1])) == 0) {
-        fprintf(stderr, "Couldn't detect mimetype for file %s. Exiting...\n", argv[1]);
-        exit(1);
-    }
-    printf("Detected mime = %s\n", detected_mime);
+    char* ext = extension(path);
     const char* CONFIG_REL_PATH = "/.config/bopen.cfg";
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
@@ -124,7 +136,7 @@ int main(int argc, char* argv[]) {
     while(!eof) {
         int ch = getc(f);
         ungetc(ch, f);
-        char* mimetype;
+        char* extension;
         char* executable;
         switch(ch) {
             case '#':
@@ -137,14 +149,15 @@ int main(int argc, char* argv[]) {
                 eof = 1;
                 break;
             default:
-                if(!read_to(f, '=', &mimetype)) break;
+                if(!read_to(f, '=', &extension)) break;
                 if(!read_to(f, ';', &executable)) break;
-                if (strcmp(mimetype, detected_mime) == 0) {
-                    execl(executable, executable, argv[1], (char*)NULL);
-                    fprintf(stderr, "Error executing %s %s.\n", executable, argv[1]);
+                printf("%s == %s?\n", extension, ext);
+                if (strcmp(extension, ext) == 0) {
+                    execl(executable, executable, path, (char*)NULL);
+                    fprintf(stderr, "Error executing %s %s.\n", executable, path);
                     break;
                 }
-                free(mimetype);
+                free(extension);
                 free(executable);
                 next_line(f);
         }
