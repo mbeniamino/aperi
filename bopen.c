@@ -150,16 +150,13 @@ void open_config_file(BOpen* bopen) {
     strcpy(cfgpath, homedir);
     strcat(cfgpath, CONFIG_REL_PATH);
     bopen->config_f = fopen(cfgpath, "rb");
-    if (!bopen->config_f) {
-        fprintf(stderr, "Error: couldn't read configuration file %s\n", cfgpath);
-        exit(2);
-    }
     free(cfgpath);
 }
 
 void launch_associated_app(BOpen* bopen) {
     open_config_file(bopen);
     FILE* f = bopen->config_f;
+    if (!f) return;
     int eof = 0;
     while(!eof) {
         int ch = getc(f);
