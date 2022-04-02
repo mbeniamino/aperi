@@ -77,13 +77,26 @@ int next_line(FILE* f) {
     return 0;
 }
 
-void extension(const char* path, char** ext) {
+int rule_id(const char* path, char** ext) {
     int idx = -1;
     int last_dot = -1;
     char ch;
+    const char* schema_id = "://";
+    int schema_idx = 0;
     while(ch = path[++idx]) {
         if(ch == '.') last_dot = idx;
         else if (ch == '/') last_dot = -1;
+        if (ch == schema_id[schema_idx]) {
+            ++schema_idx;
+            if (schema_id[schema_idx] == 0) {
+                *ext = malloc(idx+2);
+                strncpy(*ext, path, idx+1);
+                (*ext)[idx+1] = 0;
+                return 0;
+            }
+        } else {
+            schema_idx = 0;
+        }
     }
     if (last_dot == -1) last_dot = idx - 1;
     size_t path_ln = strlen(path);
@@ -92,6 +105,7 @@ void extension(const char* path, char** ext) {
     strncpy(*ext, path+last_dot+1, target_ln);
     idx = 0;
     for(idx = 0; (*ext)[idx]; ++idx) (*ext)[idx] = tolower((*ext)[idx]);
+    return 1;
 }
 
 // Code used for the Gtk dialog ===============================================
@@ -139,23 +153,24 @@ activate (GtkApplication *app,
 
 typedef struct BOpen {
     const char* file_path;
-    char* file_ext;
+    char* rule_id;
     FILE* config_f;
 } BOpen;
 
 void init(BOpen* bopen, const char* file_path) {
     bopen->file_path = file_path;
-    bopen->file_ext = NULL;
+    bopen->rule_id = NULL;
     FILE* config_f = 0;
 
-    // Check if file exists
-    struct stat statbuf;
-    if (stat(bopen->file_path, &statbuf) != 0) {
-        fprintf(stderr, "Couldn't stat %s. Exiting.", bopen->file_path);
-        exit(2);
+    // Retrieve and set the file rule_id
+    if (rule_id(bopen->file_path, &bopen->rule_id)) {
+        // Check if file exists
+        struct stat statbuf;
+        if (stat(bopen->file_path, &statbuf) != 0) {
+            fprintf(stderr, "Couldn't stat %s. Exiting.", bopen->file_path);
+            exit(2);
+        }
     }
-    // Retrieve and set the file extension
-    extension(bopen->file_path, &bopen->file_ext);
 }
 
 void close_config_file(BOpen* bopen) {
@@ -164,8 +179,8 @@ void close_config_file(BOpen* bopen) {
 }
 
 void deinit(BOpen* bopen) {
-    free(bopen->file_ext);
-    bopen->file_ext = NULL;
+    free(bopen->rule_id);
+    bopen->rule_id = NULL;
     close_config_file(bopen);
 }
 
@@ -189,7 +204,7 @@ void launch_associated_app(BOpen* bopen) {
     while(!eof) {
         int ch = getc(f);
         ungetc(ch, f);
-        char* extension;
+        char* rule_id;
         char* executable;
         switch(ch) {
             case '#':
@@ -202,19 +217,19 @@ void launch_associated_app(BOpen* bopen) {
                 eof = 1;
                 break;
             default:
-                int got_match = match(f, bopen->file_ext);
+                int got_match = match(f, bopen->rule_id);
                 if(!read_to(f, ';', &executable)) {
-                    free(extension);
+                    free(rule_id);
                     break;
                 }
                 if (got_match) {
                     execl(executable, executable, bopen->file_path, (char*)NULL);
                     fprintf(stderr, "Error executing %s %s.\n", executable, bopen->file_path);
-                    free(extension);
+                    free(rule_id);
                     free(executable);
                     break;
                 }
-                free(extension);
+                free(rule_id);
                 free(executable);
                 next_line(f);
         }
