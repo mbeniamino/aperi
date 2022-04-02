@@ -6,7 +6,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#ifdef HAVE_GTK4
 #include <gtk/gtk.h>
+#endif
 
 int read_to(FILE* f, const char sep, char **result) {
     const int SSIZE = 40;
@@ -121,6 +123,7 @@ int rule_id(const char* path, char** ext) {
     return !exists;
 }
 
+#ifdef HAVE_GTK4
 // Code used for the Gtk dialog ===============================================
 typedef struct Context {
     char* filepath;
@@ -163,6 +166,7 @@ activate (GtkApplication *app,
           gtk_widget_show(context->chooser);
 }
 // ============================================================================
+#endif
 
 typedef struct BOpen {
     const char* file_path;
@@ -249,9 +253,10 @@ int main(int argc, char* argv[]) {
     init(&bopen, argv[1]);
     launch_associated_app(&bopen);
 
+    int status = 0;
+#ifdef HAVE_GTK4
     // No association found... use gtk4 dialog to let the user choose a proper application
     GFile* gf = g_file_new_for_path(bopen.file_path);
-    int status = 0;
     if(gf) {
         GtkApplication *app;
         Context context;
@@ -262,8 +267,13 @@ int main(int argc, char* argv[]) {
         g_object_unref(gf);
         g_object_unref(app);
     }
-
+#endif
     deinit(&bopen);
+
+#ifndef HAVE_GTK4
+    fprintf(stderr, "No applications configured to handle %s\n", argv[1]);
+    status = 1;
+#endif
 
     return status;
 }
