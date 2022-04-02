@@ -218,10 +218,7 @@ void launch_associated_app(BOpen* bopen) {
                 break;
             default:
                 int got_match = match(f, bopen->rule_id);
-                if(!read_to(f, ';', &executable)) {
-                    free(rule_id);
-                    break;
-                }
+                read_to(f, '\n', &executable);
                 if (got_match) {
                     execl(executable, executable, bopen->file_path, (char*)NULL);
                     fprintf(stderr, "Error executing %s %s.\n", executable, bopen->file_path);
@@ -231,7 +228,6 @@ void launch_associated_app(BOpen* bopen) {
                 }
                 free(rule_id);
                 free(executable);
-                next_line(f);
         }
     }
     close_config_file(bopen);
