@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -10,29 +11,55 @@
 int read_to(FILE* f, const char sep, char **result) {
     const int SSIZE = 40;
     int idx = 0;
-    *result = malloc(SSIZE);
+    if (result) {
+        *result = malloc(SSIZE);
+    }
     int current_size = SSIZE;
 
     while(1) {
         int ch = getc(f);
         if (ch == EOF || ch == '\n' || ch == '\r') {
-            (*result)[idx++] = 0;
+            if (result) (*result)[idx++] = 0;
             return 0;
         }
         if (ch == sep) {
-            (*result)[idx++] = 0;
+            if (result) (*result)[idx++] = 0;
             return 1;
         }
         // We keep an extra char for the null terminator
-        if (idx + 2 == current_size) {
+        if (result && idx + 2 == current_size) {
             current_size <<= 1;
             char* new_result = malloc(current_size);
             strcpy(new_result, *result);
             free(*result);
             *result = new_result;
         }
-        (*result)[idx++] = ch;
+        if (result) (*result)[idx++] = ch;
     }
+}
+
+int match(FILE* f, const char* pattern) {
+    int pattern_idx = 0;
+    int match_count = 0;
+    int pattern_ln = strlen(pattern);
+    while(1) {
+        int ch = getc(f);
+        if (ch == ',') {
+            pattern_idx = 0;
+            match_count = 0;
+        } else if (ch == '=' || ch == '\n' || ch == '\r' || ch == EOF) {
+            break;
+        } else {
+            if (ch == pattern[pattern_idx++]) {
+                ++match_count;
+                if (pattern[pattern_idx] == 0 && match_count == pattern_ln) {
+                    read_to(f, '=', NULL);
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 int next_line(FILE* f) {
@@ -50,7 +77,7 @@ int next_line(FILE* f) {
     return 0;
 }
 
-char* extension(const char* path) {
+void extension(const char* path, char** ext) {
     int idx = -1;
     int last_dot = -1;
     char ch;
@@ -61,9 +88,10 @@ char* extension(const char* path) {
     if (last_dot == -1) last_dot = idx - 1;
     size_t path_ln = strlen(path);
     int target_ln = path_ln - last_dot;
-    char* res = malloc(target_ln);
-    strncpy(res, path+last_dot+1, target_ln);
-    return res;
+    *ext = malloc(target_ln);
+    strncpy(*ext, path+last_dot+1, target_ln);
+    idx = 0;
+    for(idx = 0; (*ext)[idx]; ++idx) (*ext)[idx] = tolower((*ext)[idx]);
 }
 
 // Code used for the Gtk dialog ===============================================
@@ -127,7 +155,7 @@ void init(BOpen* bopen, const char* file_path) {
         exit(2);
     }
     // Retrieve and set the file extension
-    bopen->file_ext = extension(bopen->file_path);
+    extension(bopen->file_path, &bopen->file_ext);
 }
 
 void close_config_file(BOpen* bopen) {
@@ -174,12 +202,12 @@ void launch_associated_app(BOpen* bopen) {
                 eof = 1;
                 break;
             default:
-                if(!read_to(f, '=', &extension)) break;
+                int got_match = match(f, bopen->file_ext);
                 if(!read_to(f, ';', &executable)) {
                     free(extension);
                     break;
                 }
-                if (strcasecmp(extension, bopen->file_ext) == 0) {
+                if (got_match) {
                     execl(executable, executable, bopen->file_path, (char*)NULL);
                     fprintf(stderr, "Error executing %s %s.\n", executable, bopen->file_path);
                     free(extension);
