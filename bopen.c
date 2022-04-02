@@ -96,7 +96,7 @@ int rule_id(const char* path, char** ext) {
     char ch;
     const char* schema_id = "://";
     int schema_idx = 0;
-    while(ch = path[++idx]) {
+    while((ch = path[++idx])) {
         if(ch == '.') last_dot = idx;
         else if (ch == '/') last_dot = -1;
         if (ch == schema_id[schema_idx]) {
@@ -173,7 +173,6 @@ typedef struct BOpen {
 void init(BOpen* bopen, const char* file_path) {
     bopen->file_path = file_path;
     bopen->rule_id = NULL;
-    FILE* config_f = 0;
 
     // Retrieve and set the file rule_id
     if (rule_id(bopen->file_path, &bopen->rule_id) != 0) {
@@ -213,7 +212,6 @@ void launch_associated_app(BOpen* bopen) {
     while(!eof) {
         int ch = getc(f);
         ungetc(ch, f);
-        char* rule_id;
         char* executable;
         switch(ch) {
             case '#':
@@ -231,11 +229,9 @@ void launch_associated_app(BOpen* bopen) {
                 if (got_match) {
                     execl(executable, executable, bopen->file_path, (char*)NULL);
                     fprintf(stderr, "Error executing %s %s.\n", executable, bopen->file_path);
-                    free(rule_id);
                     free(executable);
                     break;
                 }
-                free(rule_id);
                 free(executable);
         }
     }
@@ -255,8 +251,8 @@ int main(int argc, char* argv[]) {
 
     // No association found... use gtk4 dialog to let the user choose a proper application
     GFile* gf = g_file_new_for_path(bopen.file_path);
+    int status = 0;
     if(gf) {
-        int status;
         GtkApplication *app;
         Context context;
         context.file = gf;
@@ -269,5 +265,5 @@ int main(int argc, char* argv[]) {
 
     deinit(&bopen);
 
-    return 0;
+    return status;
 }
