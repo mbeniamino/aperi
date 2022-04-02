@@ -78,6 +78,19 @@ int next_line(FILE* f) {
 }
 
 int rule_id(const char* path, char** ext) {
+    int exists = 0;
+    // Check if file exists
+    struct stat statbuf;
+    if (stat(path, &statbuf) == 0) {
+        exists = 1;
+        if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+            *ext = malloc(2);
+            (*ext)[0] = '/';
+            (*ext)[1] = 0;
+            return 0;
+        }
+    }
+
     int idx = -1;
     int last_dot = -1;
     char ch;
@@ -105,7 +118,7 @@ int rule_id(const char* path, char** ext) {
     strncpy(*ext, path+last_dot+1, target_ln);
     idx = 0;
     for(idx = 0; (*ext)[idx]; ++idx) (*ext)[idx] = tolower((*ext)[idx]);
-    return 1;
+    return !exists;
 }
 
 // Code used for the Gtk dialog ===============================================
@@ -163,13 +176,9 @@ void init(BOpen* bopen, const char* file_path) {
     FILE* config_f = 0;
 
     // Retrieve and set the file rule_id
-    if (rule_id(bopen->file_path, &bopen->rule_id)) {
-        // Check if file exists
-        struct stat statbuf;
-        if (stat(bopen->file_path, &statbuf) != 0) {
-            fprintf(stderr, "Couldn't stat %s. Exiting.", bopen->file_path);
-            exit(2);
-        }
+    if (rule_id(bopen->file_path, &bopen->rule_id) != 0) {
+        fprintf(stderr, "Couldn't stat %s. Exiting.", bopen->file_path);
+        exit(2);
     }
 }
 
