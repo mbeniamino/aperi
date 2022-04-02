@@ -163,7 +163,7 @@ activate (GtkApplication *app,
                            "response",
                            G_CALLBACK(app_chooser_response_cb),
                            context);
-          gtk_window_set_title(GTK_WINDOW(context->chooser), "BOpen");
+          gtk_window_set_title(GTK_WINDOW(context->chooser), "Aperi");
           gtk_window_present(context->main_window);
           gtk_widget_hide(GTK_WIDGET(context->main_window));
           gtk_widget_show(context->chooser);
@@ -171,49 +171,49 @@ activate (GtkApplication *app,
 // ============================================================================
 #endif
 
-typedef struct BOpen {
+typedef struct Aperi {
     const char* file_path;
     char* rule_id;
     FILE* config_f;
-} BOpen;
+} Aperi;
 
-void init(BOpen* bopen, const char* file_path) {
-    bopen->file_path = file_path;
-    bopen->rule_id = NULL;
+void init(Aperi* aperi, const char* file_path) {
+    aperi->file_path = file_path;
+    aperi->rule_id = NULL;
 
     // Retrieve and set the file rule_id
-    if (rule_id(bopen->file_path, &bopen->rule_id) != 0) {
-        fprintf(stderr, "Couldn't stat %s. Exiting.", bopen->file_path);
+    if (rule_id(aperi->file_path, &aperi->rule_id) != 0) {
+        fprintf(stderr, "Couldn't stat %s. Exiting.", aperi->file_path);
         exit(2);
     }
 }
 
-void close_config_file(BOpen* bopen) {
-    if(bopen->config_f) fclose(bopen->config_f);
-    bopen->config_f = 0;
+void close_config_file(Aperi* aperi) {
+    if(aperi->config_f) fclose(aperi->config_f);
+    aperi->config_f = 0;
 }
 
-void deinit(BOpen* bopen) {
-    free(bopen->rule_id);
-    bopen->rule_id = NULL;
-    close_config_file(bopen);
+void deinit(Aperi* aperi) {
+    free(aperi->rule_id);
+    aperi->rule_id = NULL;
+    close_config_file(aperi);
 }
 
-void open_config_file(BOpen* bopen) {
+void open_config_file(Aperi* aperi) {
     // Open the configuration file
-    const char* CONFIG_REL_PATH = "/.config/bopen.cfg";
+    const char* CONFIG_REL_PATH = "/.config/aperi.cfg";
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
     char* cfgpath = malloc(strlen(homedir)+strlen(CONFIG_REL_PATH)+1);
     strcpy(cfgpath, homedir);
     strcat(cfgpath, CONFIG_REL_PATH);
-    bopen->config_f = fopen(cfgpath, "rb");
+    aperi->config_f = fopen(cfgpath, "rb");
     free(cfgpath);
 }
 
-void launch_associated_app(BOpen* bopen) {
-    open_config_file(bopen);
-    FILE* f = bopen->config_f;
+void launch_associated_app(Aperi* aperi) {
+    open_config_file(aperi);
+    FILE* f = aperi->config_f;
     if (!f) return;
     int eof = 0;
     while(!eof) {
@@ -231,18 +231,18 @@ void launch_associated_app(BOpen* bopen) {
                 eof = 1;
                 break;
             default:
-                int got_match = match(f, bopen->rule_id);
+                int got_match = match(f, aperi->rule_id);
                 read_to(f, '\n', &executable);
                 if (got_match) {
-                    execl(executable, executable, bopen->file_path, (char*)NULL);
-                    fprintf(stderr, "Error executing %s %s.\n", executable, bopen->file_path);
+                    execl(executable, executable, aperi->file_path, (char*)NULL);
+                    fprintf(stderr, "Error executing %s %s.\n", executable, aperi->file_path);
                     free(executable);
                     break;
                 }
                 free(executable);
         }
     }
-    close_config_file(bopen);
+    close_config_file(aperi);
 }
 
 int main(int argc, char* argv[]) {
@@ -252,26 +252,26 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
-    BOpen bopen;
-    init(&bopen, argv[1]);
-    launch_associated_app(&bopen);
+    Aperi aperi;
+    init(&aperi, argv[1]);
+    launch_associated_app(&aperi);
 
     int status = 0;
 #ifdef HAVE_GTK4
     // No association found... use gtk4 dialog to let the user choose a proper application
-    GFile* gf = g_file_new_for_path(bopen.file_path);
+    GFile* gf = g_file_new_for_path(aperi.file_path);
     if(gf) {
         GtkApplication *app;
         Context context;
         context.file = gf;
-        app = gtk_application_new ("org.tautologica.bopen", G_APPLICATION_FLAGS_NONE);
+        app = gtk_application_new ("org.tautologica.aperi", G_APPLICATION_FLAGS_NONE);
         g_signal_connect(app, "activate", G_CALLBACK (activate), &context);
         status = g_application_run(G_APPLICATION (app), 0, NULL);
         g_object_unref(gf);
         g_object_unref(app);
     }
 #endif
-    deinit(&bopen);
+    deinit(&aperi);
 
 #ifndef HAVE_GTK4
     fprintf(stderr, "No applications configured to handle %s\n", argv[1]);

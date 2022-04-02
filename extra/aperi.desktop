@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=bopen
+Name=aperi
 GenericName=Resource opener
 Terminal=false
-Exec=bopen %F
+Exec=aperi %F
 Type=Application
 Categories=Utility;
