@@ -80,6 +80,9 @@ int next_line(FILE* f) {
 }
 
 int rule_id(const char* path, char** ext) {
+    if (strncmp(path, "file://", 7) == 0) {
+        path += 7;
+    }
     int exists = 0;
     // Check if file exists
     struct stat statbuf;
