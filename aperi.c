@@ -6,20 +6,37 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <errno.h>
 #ifdef HAVE_GTK4
 #include <gtk/gtk.h>
 #endif
 
-int read_to(FILE* f, const char sep) {
+int read_to(FILE* f, const char sep, char **result) {
+    const int SSIZE = 40;
+    int idx = 0;
+    if (result) {
+        *result = malloc(SSIZE);
+    }
+    int current_size = SSIZE;
+
     while(1) {
         int ch = getc(f);
         if (ch == EOF || ch == '\n' || ch == '\r') {
+            if (result) (*result)[idx++] = 0;
             return 0;
         }
         if (ch == sep) {
+            if (result) (*result)[idx++] = 0;
             return 1;
         }
+        // We keep an extra char for the null terminator
+        if (result && idx + 2 == current_size) {
+            current_size <<= 1;
+            char* new_result = malloc(current_size);
+            strcpy(new_result, *result);
+            free(*result);
+            *result = new_result;
+        }
+        if (result) (*result)[idx++] = ch;
     }
 }
 
@@ -38,7 +55,7 @@ int match(FILE* f, const char* pattern) {
             if (ch == pattern[pattern_idx++]) {
                 ++match_count;
                 if (pattern[pattern_idx] == 0 && match_count == pattern_ln) {
-                    read_to(f, '=');
+                    read_to(f, '=', NULL);
                     return 1;
                 }
             }
@@ -194,56 +211,6 @@ void open_config_file(Aperi* aperi) {
     free(cfgpath);
 }
 
-void read_app_and_launch(Aperi* aperi) {
-    int ch;
-    int argv_curr_alloc = 3;
-    char** argv = (char**)malloc(argv_curr_alloc * sizeof(char*));
-    int argv_curr_size = 3; // current string + the argument + the final NULL
-
-    int line_curr_alloc = 80;
-    char* line = (char*)malloc(line_curr_alloc);
-    int line_curr_size = 1; // final null
-    argv[0] = line;
-
-    int last_space = 0;
-    while(1) {
-        ch = getc(aperi->config_f);
-        if(ch == '\n' || ch == '\r' || ch == EOF || (ch == ' ' && !last_space)) {
-            line[line_curr_size-1] = 0;
-            if (ch == ' ') {
-                while (argv_curr_size + 1 >= argv_curr_alloc) {
-                    argv_curr_alloc *= 2;
-                    argv = (char**)realloc(argv, argv_curr_alloc * sizeof(char*));
-                }
-                argv[argv_curr_size - 2] = &line[line_curr_size];
-                ++line_curr_size;
-                ++argv_curr_size;
-            } else {
-                break;
-            }
-            last_space = 1;
-        } else {
-            if (line_curr_size + 1 > line_curr_alloc) {
-                line_curr_alloc *= 2;
-                line = realloc(line, line_curr_alloc);
-            }
-            line[line_curr_size - 1] = ch == ' ' ? 0 : ch;
-            if (ch == ' ') ++argv[argv_curr_size - 3];
-            ++line_curr_size;
-            last_space = ch == ' ';
-        }
-    }
-    // Remove trailing spaces
-    if (strlen(argv[argv_curr_size-3]) == 0) argv_curr_size--;
-
-    argv[argv_curr_size-2] = (char*)aperi->file_path;
-    argv[argv_curr_size-1] = NULL;
-    execvp(argv[0], argv);
-    fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));
-    free(argv);
-    free(line);
-}
-
 void launch_associated_app(Aperi* aperi) {
     open_config_file(aperi);
     FILE* f = aperi->config_f;
@@ -252,6 +219,7 @@ void launch_associated_app(Aperi* aperi) {
     while(!eof) {
         int ch = getc(f);
         ungetc(ch, f);
+        char* executable;
         switch(ch) {
             case '#':
             case ';':
@@ -264,12 +232,14 @@ void launch_associated_app(Aperi* aperi) {
                 break;
             default:
                 int got_match = match(f, aperi->rule_id);
+                read_to(f, '\n', &executable);
                 if (got_match) {
-                    read_app_and_launch(aperi);
+                    execl(executable, executable, aperi->file_path, (char*)NULL);
+                    fprintf(stderr, "Error executing %s %s.\n", executable, aperi->file_path);
+                    free(executable);
                     break;
-                } else {
-                    read_to(f, '\n');
                 }
+                free(executable);
         }
     }
     close_config_file(aperi);
