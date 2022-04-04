@@ -237,11 +237,19 @@ void read_app_and_launch(Aperi* aperi) {
             ++used_str;
         }
     }
-    argv[used_args-2] = (char*)aperi->file_path;
+    int rule_id_len = strlen(aperi->rule_id);
+    int is_schema = rule_id_len >= 3 && strncmp(aperi->rule_id + rule_id_len - 3, "://", 3) == 0;
+    if (is_schema) {
+        int pathlen = strlen(aperi->file_path);
+        argv[used_args-2] = malloc(pathlen+1);
+        strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
+    } else {
+        argv[used_args-2] = realpath(aperi->file_path, NULL);
+    }
     argv[used_args-1] = NULL;
     execvp(argv[0], argv);
     fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));
-    for(int i = 0; i < used_args; ++i) if (i != used_args - 2) free(argv[i]);
+    for(int i = 0; i < used_args; ++i) free(argv[i]);
     free(argv);
 }
 
