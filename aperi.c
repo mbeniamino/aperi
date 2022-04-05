@@ -27,14 +27,19 @@ int match(FILE* f, const char* pattern) {
     int pattern_idx = 0;
     int match_count = 0;
     int pattern_ln = strlen(pattern);
+    int star = 0;
     while(1) {
         int ch = getc(f);
         if (ch == ',') {
             pattern_idx = 0;
             match_count = 0;
+            star = 0;
+        } else if (ch == '=' && star) {
+            return 1;
         } else if (ch == '=' || ch == '\n' || ch == '\r' || ch == EOF) {
             break;
         } else {
+            star = pattern_idx == 0 && ch == '*';
             if (ch == pattern[pattern_idx++]) {
                 ++match_count;
                 if (pattern[pattern_idx] == 0 && match_count == pattern_ln) {
