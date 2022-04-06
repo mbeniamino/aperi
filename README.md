@@ -64,6 +64,7 @@ executables in the new directory `build`.
 To manually compile Aperi and gtk4-open you can use something like:
 
 `gcc aperi.c -o aperi`
+
 `gcc gtk4-open.c $(pkg-config --libs gtk4) $(pkg-config --cflags gtk4) -O2 -o gtk4-open`
 
 ## Installation
