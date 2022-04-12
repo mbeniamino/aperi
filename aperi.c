@@ -65,9 +65,6 @@ int next_line(FILE* f) {
 }
 
 int rule_id(const char* path, char** ext) {
-    if (strncmp(path, "file://", 7) == 0) {
-        path += 7;
-    }
     int exists = 0;
     // Check if file exists
     struct stat statbuf;
@@ -118,7 +115,11 @@ typedef struct Aperi {
 } Aperi;
 
 void init(Aperi* aperi, const char* file_path) {
-    aperi->file_path = file_path;
+    if (strncmp(file_path, "file://", 7) == 0) {
+        aperi->file_path = file_path + 7;
+    } else {
+        aperi->file_path = file_path;
+    }
     aperi->rule_id = NULL;
 
     // Retrieve and set the file rule_id
