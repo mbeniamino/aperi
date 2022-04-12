@@ -194,8 +194,7 @@ void read_app_and_launch(Aperi* aperi) {
             ++used_str;
         }
     }
-    int rule_id_len = strlen(aperi->rule_id);
-    int is_schema = rule_id_len >= 3 && strncmp(aperi->rule_id + rule_id_len - 3, "://", 3) == 0;
+    int is_schema = strstr(aperi->file_path, "://") != NULL;
     if (is_schema) {
         int pathlen = strlen(aperi->file_path);
         argv[used_args-2] = malloc(pathlen+1);
