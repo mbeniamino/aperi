@@ -145,9 +145,10 @@ void open_config_file(Aperi* aperi) {
     const char* CONFIG_REL_PATH = "/.config/aperi.cfg";
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
-    char* cfgpath = malloc(strlen(homedir)+strlen(CONFIG_REL_PATH)+1);
+    size_t homedir_ln = strlen(homedir);
+    char* cfgpath = malloc(homedir_ln+strlen(CONFIG_REL_PATH)+1);
     strcpy(cfgpath, homedir);
-    strcat(cfgpath, CONFIG_REL_PATH);
+    strcpy(cfgpath+homedir_ln, CONFIG_REL_PATH);
     aperi->config_f = fopen(cfgpath, "rb");
     free(cfgpath);
 }
