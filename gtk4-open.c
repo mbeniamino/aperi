@@ -37,8 +37,8 @@ activate (GtkApplication *app,
                            context);
           gtk_window_set_title(GTK_WINDOW(context->chooser), "Aperi");
           gtk_window_present(context->main_window);
-          gtk_widget_hide(GTK_WIDGET(context->main_window));
-          gtk_widget_show(context->chooser);
+          gtk_widget_set_visible(GTK_WIDGET(context->main_window), FALSE);
+          gtk_widget_set_visible(context->chooser, TRUE);
 }
 
 int main(int argc, char* argv[]) {
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         GtkApplication *app;
         Context context;
         context.file = gf;
-        app = gtk_application_new ("org.tautologica.gtk4-open", G_APPLICATION_FLAGS_NONE);
+        app = gtk_application_new ("org.tautologica.gtk4-open", G_APPLICATION_DEFAULT_FLAGS);
         g_signal_connect(app, "activate", G_CALLBACK (activate), &context);
         status = g_application_run(G_APPLICATION (app), 0, NULL);
         g_object_unref(gf);
