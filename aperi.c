@@ -142,7 +142,7 @@ void deinit(Aperi* aperi) {
 
 void open_config_file(Aperi* aperi) {
     // Open the configuration file
-    const char* CONFIG_REL_PATH = "/.config/aperi.cfg";
+    const char* CONFIG_REL_PATH = "/.config/aperi/config";
     struct passwd *pw = getpwuid(getuid());
     const char *homedir = pw->pw_dir;
     size_t homedir_ln = strlen(homedir);

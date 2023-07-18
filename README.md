@@ -11,7 +11,7 @@ to all files without a more specific association.
 ## Configuration
 
 The program should be invoked with a single argument that is a URL or a path to
-open. It then reads its configuration from `$HOME/.config/aperi.cfg` and
+open. It then reads its configuration from `$HOME/.config/aperi/config` and
 launches the associated program, if any. If the argument of the program starts
 with `file://` this prefix will be automatically stripped. If the argument of
 the program is a file or a directory it will be normalized to an absolute path
@@ -44,8 +44,8 @@ the author, never had to write one to overcome this limitation).
 
 Rules are checked in order. The first matching rule will be used.
 
-The `extra` directory contains a sample configuration file to be copied in
-`~/.config` and modified as needed;
+The `extra` directory contains a sample configuration file to be copied to
+`~/.config/aperi/config` and modified as needed;
 
 ## Compilation instructions
 
