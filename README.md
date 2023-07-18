@@ -56,16 +56,16 @@ level directory use:
 
 `meson --buildtype release build && meson compile -C build`
 
-This will create the `aperi` and, only if Gtk4 is available, `gtk4-open`
-executables in the new directory `build`.
+This will create the `aperi` and, only if dbus development files are available,
+`app-chooser` executables in the new directory `build`.
 
 ### Manual compilation
 
-To manually compile Aperi and gtk4-open you can use something like:
+To manually compile Aperi and app-chooser you can use something like:
 
 `gcc aperi.c -o aperi`
 
-`gcc gtk4-open.c $(pkg-config --libs gtk4) $(pkg-config --cflags gtk4) -O2 -o gtk4-open`
+`gcc app-chooser.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o app-chooser`
 
 ## Installation
 
@@ -73,14 +73,6 @@ Either use `aperi` as a standalone executable or put a link named `xdg-open` in
 your path in a directory with higher precedence than the one containing the
 system `xdg-open` (this will use `aperi` to open url and files in place of
 `xdg-open` for example for opening files downloaded by chrome/chromium). It's
-also suggested to put `gtk4-open` in PATH and use the rule `*=gtk4-open` at the
+also suggested to put `app-chooser` in PATH and use the rule `*=app-chooser` at the
 end of the config file to have a handy way to open all files not associated
 with anything else.
-
-### Sway integration
-
-To force `gtk4-open` to show as a floating window you can use the follow
-directive in your sway configuration file:
-
-`for_window [title="Aperi"] floating enable`
-

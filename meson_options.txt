@@ -1,1 +1,1 @@
-option('gtk4', type: 'feature', value: 'auto')
+option('dbus', type: 'feature', value: 'auto')

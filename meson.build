@@ -2,8 +2,8 @@ project('aperi', 'c', version: '0.2')
 src_aperi = ['aperi.c']
 executable('aperi', sources: src_aperi)
 
-gtk4_dep = dependency('gtk4', required: get_option('gtk4'))
-if gtk4_dep.found()
-  src_gtk4_opener = ['gtk4-open.c']
-  executable('gtk4-open', sources: src_gtk4_opener, dependencies: gtk4_dep)
+dbus_dep = dependency('dbus-1', required: get_option('dbus'))
+if dbus_dep.found()
+  src_app_chooser = ['app-chooser.c']
+  executable('app-chooser', sources: src_app_chooser, dependencies: dbus_dep)
 endif
