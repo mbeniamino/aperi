@@ -1,0 +1,4 @@
+v 0.3
+
+- Removed `gtk4-open` helper and substituted with `app-chooser`
+- Changed configuration path from .config/aperi.cfg to .config/aperi/config

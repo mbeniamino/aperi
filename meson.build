@@ -1,4 +1,4 @@
-project('aperi', 'c', version: '0.2')
+project('aperi', 'c', version: '0.3')
 src_aperi = ['aperi.c']
 executable('aperi', sources: src_aperi)
 
