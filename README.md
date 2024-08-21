@@ -54,7 +54,7 @@ The `extra` directory contains a sample configuration file to be copied to
 Aperi uses the meson build framework. For a standard compilation, from the top
 level directory use:
 
-`meson --buildtype release build && meson compile -C build`
+`meson setup --buildtype release build && meson compile -C build`
 
 This will create the `aperi` and, only if dbus development files are available,
 `app-chooser` executables in the new directory `build`.
