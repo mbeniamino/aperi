@@ -8,7 +8,9 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-int read_to(FILE* f, const char sep) {
+/* Read a line from file f up to the next `sep` character. Return 1 if the character
+ * was found or 0 if it reached the end of the line or of the file */
+int read_line_to(FILE* f, const char sep) {
     while(1) {
         int ch = getc(f);
         if (ch == EOF || ch == '\n' || ch == '\r') {
@@ -37,11 +39,16 @@ int match(FILE* f, const char* pattern) {
             break;
         } else {
             star = pattern_idx == 0 && ch == '*';
-            if (ch == pattern[pattern_idx++]) {
+            if (pattern_idx < pattern_ln && ch == pattern[pattern_idx++]) {
                 ++match_count;
                 if (pattern[pattern_idx] == 0 && match_count == pattern_ln) {
-                    read_to(f, '=');
-                    return 1;
+                    ch = getc(f);
+                    if (ch == '=' || ch == ',') {
+                        ungetc(ch, f);
+                        // rule matches, move to '=' and return
+                        read_line_to(f, '=');
+                        return 1;
+                    }
                 }
             }
         }
@@ -235,7 +242,8 @@ void launch_associated_app(Aperi* aperi) {
                     read_app_and_launch(aperi);
                     break;
                 } else {
-                    read_to(f, '\n');
+                    // no match: skip to next line
+                    read_line_to(f, '\n');
                 }
         }
     }
