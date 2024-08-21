@@ -237,6 +237,8 @@ void launch_associated_app(Aperi* aperi) {
                 eof = 1;
                 break;
             default:
+            {
+                // check if the current line matches the rule
                 int got_match = match(f, aperi->rule_id);
                 if (got_match) {
                     read_app_and_launch(aperi);
@@ -245,6 +247,7 @@ void launch_associated_app(Aperi* aperi) {
                     // no match: skip to next line
                     read_line_to(f, '\n');
                 }
+            }
         }
     }
     close_config_file(aperi);
