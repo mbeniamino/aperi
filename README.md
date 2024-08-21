@@ -17,10 +17,11 @@ with `file://` this prefix will be automatically stripped. If the argument of
 the program is a file or a directory it will be normalized to an absolute path
 pointing to the file.
 
-The configuration file is a sequence of lines. Empty lines or lines starting with (`#`) are ignored.
+The configuration file is a sequence of lines. Empty lines or lines starting
+with `#` are ignored.
 
-The remaining lines define the executable to use to handle file or url passed
-as the argument of the program and must follow this syntax:
+The remaining lines define the executable to use to handle the file or url
+passed as the argument of the program and must follow this syntax:
 
 `<rule>[,<rule>]...=<executable> [<arg> ]...`
 
@@ -39,7 +40,7 @@ executable in the PATH. The executable will be launched passing all the specifie
 `<arg>`s and the `aperi` argument.
 At the moment there is no way to pass arguments containing spaces or to not pass
 the aperi argument as an extra argument to `<executable>`, but as a workaround
-you can write a small shell script embedding the command (in real life, me,
+you can write a small shell script embedding the command (in real life, I,
 the author, never had to write one to overcome this limitation).
 
 Rules are checked in order. The first matching rule will be used.
