@@ -2,11 +2,11 @@ Aperi, a simple resource opener by Matteo Beniamino.
 
 ## Description
 
-Aperi is a resource opener based on file extensions. It allows to configure the
-executable to launch to handle a certain extension. The project also contains
-a utility that launches a standard GTK 4 dialog to let the user choose an
-application for opening a file: the common use case it to associate this utility
-to all files without a more specific association.
+Aperi is a resource opener based on file extensions. It allows to to launch a
+configurable executable to handle a certain file or uri based on its extension
+or schema. The project also contains a utility that launches via dbus the
+standard system chooser for opening a file: the common use case it to associate
+this utility to all files without a more specific association.
 
 ## Configuration
 
