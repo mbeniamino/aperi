@@ -253,8 +253,7 @@ int main(int argc, char* argv[]) {
     init(&aperi, argv[1]);
     launch_associated_app(&aperi);
 
-    int status = 0;
     deinit(&aperi);
 
-    return status;
+    return 0;
 }
