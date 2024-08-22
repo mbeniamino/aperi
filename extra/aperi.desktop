@@ -2,6 +2,6 @@
 Name=aperi
 GenericName=Resource opener
 Terminal=false
-Exec=aperi %F
+Exec=aperi %u
 Type=Application
 Categories=Utility;
