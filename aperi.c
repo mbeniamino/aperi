@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+typedef enum { MTExact, MTEnd } MatchType;
+
 /* Read a line from file f up to the next `sep` character. Return 1 if the character
  * was found or 0 if it reached the end of the line or of the file */
 int read_line_to(FILE* f, const char sep) {
@@ -20,46 +22,6 @@ int read_line_to(FILE* f, const char sep) {
             return 1;
         }
     }
-}
-
-/* check if the current config line matches for the pattern. Read up to '=' or 
- * end of line/file, whatever comes first */
-int match(FILE* f, const char* pattern) {
-    int pattern_idx = 0;
-    int match_count = 0;
-    int pattern_ln = strlen(pattern);
-    // flag set when '*' is found at the beginning of a match
-    int star = 0;
-    while(1) {
-        int ch = getc(f);
-        if (ch == ',') {
-            pattern_idx = 0;
-            match_count = 0;
-            star = 0;
-        } else if (ch == '=' && star) {
-            /* catchall rule */
-            return 1;
-        } else if (ch == '=' || ch == '\n' || ch == '\r' || ch == EOF) {
-            /* end of line/file -> exit from loop */
-            break;
-        } else {
-            star = pattern_idx == 0 && ch == '*';
-            if (pattern_idx < pattern_ln && ch == pattern[pattern_idx++]) {
-                ++match_count;
-                if (pattern[pattern_idx] == 0 && match_count == pattern_ln) {
-                    ch = getc(f);
-                    if (ch == '=' || ch == ',') {
-                        ungetc(ch, f);
-                        // rule matches, move to '=' and return
-                        read_line_to(f, '=');
-                        return 1;
-                    }
-                }
-            }
-        }
-    }
-    // no match
-    return 0;
 }
 
 /* skip to the next non empty line in file `f` */
@@ -78,39 +40,51 @@ int next_line(FILE* f) {
     return 0;
 }
 
-/* Calc the rule id to match for the resource `path` (extension, schema, /, etc...)
-   ext will be filled with the rule id to match in the config file
-   return 1 if the file doesn't exists. urls always return 0. */
-int rule_id(const char* path, char** ext) {
+typedef struct Aperi {
+    // File path/url to open
+    const char* file_path;
+    // String to match
+    char* rule_id;
+    // Match type
+    MatchType match_type;
+    // Aperi config file
+    FILE* config_f;
+} Aperi;
+
+/* Calc `rule_id` and `match_type` to match for the resource `file_path`
+ * (extension, schema, /, etc...)
+ return 1 if the file doesn't exists. urls always return 0. */
+int aperi_calc_rule_id(Aperi* aperi) {
     int exists = 0;
     // Check if file exists. If it does and it's a directory return the rule id '/'
     struct stat statbuf;
-    if (stat(path, &statbuf) == 0) {
+    if (stat(aperi->file_path, &statbuf) == 0) {
         exists = 1;
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-            *ext = malloc(2);
-            (*ext)[0] = '/';
-            (*ext)[1] = 0;
+            aperi->rule_id = malloc(2);
+            aperi->rule_id[0] = '/';
+            aperi->rule_id[1] = 0;
+            aperi->match_type = MTExact;
             return 0;
         }
     }
 
-    // Search for :// or a dot
+    // Search for ://
     int idx = -1;
-    int last_dot = -1;
+    int last_slash = -1;
     char ch;
     const char* schema_id = "://";
     int schema_idx = 0;
-    while((ch = path[++idx])) {
-        if(ch == '.') last_dot = idx;
-        else if (ch == '/') last_dot = -1;
+    while((ch = aperi->file_path[++idx])) {
+        if (ch == '/') last_slash = idx;
         if (ch == schema_id[schema_idx]) {
             // found '://' -> return the string up to :// included
             ++schema_idx;
             if (schema_id[schema_idx] == 0) {
-                *ext = malloc(idx+2);
-                strncpy(*ext, path, idx+1);
-                (*ext)[idx+1] = 0;
+                aperi->rule_id = malloc(idx+2);
+                strncpy(aperi->rule_id, aperi->file_path, idx+1);
+                aperi->rule_id[idx+1] = 0;
+                aperi->match_type = MTExact;
                 return 0;
             }
         } else {
@@ -118,26 +92,82 @@ int rule_id(const char* path, char** ext) {
         }
     }
 
-    // Not a folder, not an url: return the extension (the substring after the last '.')
-    // in lowercase
-    if (last_dot == -1) last_dot = idx - 1;
-    size_t path_ln = strlen(path);
-    int target_ln = path_ln - last_dot;
-    *ext = malloc(target_ln);
-    strncpy(*ext, path+last_dot+1, target_ln);
-    idx = 0;
-    for(idx = 0; (*ext)[idx]; ++idx) (*ext)[idx] = tolower((*ext)[idx]);
+    // Not a folder, not an url: return the basename in lowercase
+    int target_ln = idx - last_slash + 1;
+    aperi->rule_id = malloc(target_ln);
+    strncpy(aperi->rule_id, &aperi->file_path[last_slash+1], target_ln);
+    aperi->match_type = MTEnd;
+    for(idx = 0; aperi->rule_id[idx]; ++idx) {
+        aperi->rule_id[idx] = tolower(aperi->rule_id[idx]);
+    }
     return !exists;
 }
 
-typedef struct Aperi {
-    // File path/url to open
-    const char* file_path;
-    // Rule id to match for file_path
-    char* rule_id;
-    // Aperi config file
-    FILE* config_f;
-} Aperi;
+/* check if the current config line matches for the pattern. Read up to '=' or
+ * end of line/file, whatever comes first */
+int aperi_match(Aperi* aperi) {
+    int pattern_idx = 0;
+    int match_count = 0;
+    char* rule_id = aperi->rule_id;
+    int rule_id_ln = strlen(aperi->rule_id);
+    // flag set when '*' is found at the beginning of a match
+    int star = 0;
+    ssize_t pattern_allocation = 64;
+    char *current_pattern = (char*)malloc(pattern_allocation);
+    while(1) {
+        int ch = getc(aperi->config_f);
+        while (pattern_idx + 2 > pattern_allocation) {
+            pattern_allocation *= 2;
+            current_pattern = realloc(current_pattern, pattern_allocation);
+        }
+        if (ch == ',' || ch == '=') {
+            if (star) return 1;
+            current_pattern[pattern_idx] = 0;
+            if (aperi->match_type == MTEnd) {
+                // rule_id endswith
+                current_pattern[pattern_idx+1] = 0;
+                if(rule_id_ln - pattern_idx - 1 >= 0 &&
+                   aperi->rule_id[rule_id_ln - pattern_idx - 1] == '.' &&
+                   strncmp(current_pattern,
+                           aperi->rule_id + rule_id_ln - pattern_idx,
+                           pattern_idx + 1) == 0) {
+                    // rule matches, move to '=' and return
+                    if (ch == ',') read_line_to(aperi->config_f, '=');
+                    return 1;
+                }
+            } else if (aperi->match_type == MTExact) {
+                if (rule_id[pattern_idx+1] == 0 && match_count == rule_id_ln) {
+                    // rule matches, move to '=' and return
+                    if (ch == ',') read_line_to(aperi->config_f, '=');
+                    return 1;
+                }
+            } else {
+                fprintf(stderr, "Unexpected value for match_type. "
+                                "This shouldn't happen! Contact the author.\n");
+                exit(2);
+            }
+            // no more rules on this line -> no match
+            if (ch == '=') return 0;
+            pattern_idx = 0;
+            match_count = 0;
+            star = 0;
+            current_pattern[0] = 0;
+        } else if (ch == '\n' || ch == '\r' || ch == EOF) {
+            /* end of line/file -> exit from loop */
+            break;
+        } else {
+            star = pattern_idx == 0 && ch == '*';
+            current_pattern[pattern_idx] = ch;
+            if (pattern_idx < rule_id_ln && ch == rule_id[pattern_idx]) {
+                ++match_count;
+            }
+            ++pattern_idx;
+        }
+    }
+    free(current_pattern);
+    // no match
+    return 0;
+}
 
 // Init aperi struct members. `file_path` is the url/file to open.
 void init(Aperi* aperi, const char* file_path) {
@@ -150,9 +180,9 @@ void init(Aperi* aperi, const char* file_path) {
     aperi->rule_id = NULL;
 
     // Retrieve and set the file rule_id. If the file doesn't exist exit with an error
-    if (rule_id(aperi->file_path, &aperi->rule_id) != 0) {
-        fprintf(stderr, "Couldn't stat %s. Exiting.", aperi->file_path);
-        exit(2);
+    if (aperi_calc_rule_id(aperi) != 0) {
+        fprintf(stderr, "Couldn't stat %s. Exiting.\n", aperi->file_path);
+        exit(1);
     }
 }
 
@@ -274,7 +304,7 @@ void launch_associated_app(Aperi* aperi) {
             default:
             {
                 // check if the current line matches the rule
-                int got_match = match(f, aperi->rule_id);
+                int got_match = aperi_match(aperi);
                 if (got_match) {
                     // match: launch the associated program
                     read_app_and_launch(aperi);
