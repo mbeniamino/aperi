@@ -136,7 +136,7 @@ int aperi_match(Aperi* aperi) {
                     return 1;
                 }
             } else if (aperi->match_type == MTExact) {
-                if (rule_id[pattern_idx+1] == 0 && match_count == rule_id_ln) {
+                if (rule_id[pattern_idx] == 0 && match_count == rule_id_ln) {
                     // rule matches, move to '=' and return
                     if (ch == ',') read_line_to(aperi->config_f, '=');
                     return 1;
