@@ -2,7 +2,8 @@ v 0.4
 
 - Added support for multipart extensions, like .tar.gz
 - Fix: prevent rules from matching shorter extensions (abcd= matched .abc)
-- Small improvements in README.md
+- Fixed aperi.desktop file to handle uris
+- Improvements in README.md
 
 v 0.3
 
