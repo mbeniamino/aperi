@@ -48,7 +48,7 @@ Rules are checked in order. The first matching rule will be used.
 The `extra` directory contains a sample configuration file to be copied to
 `~/.config/aperi/config` and modified as needed;
 
-## Compilation instructions
+## Build instructions
 
 ### Meson
 
@@ -70,10 +70,64 @@ To manually compile Aperi and app-chooser you can use something like:
 
 ## Installation
 
-Either use `aperi` as a standalone executable or put a link named `xdg-open` in
-your path in a directory with higher precedence than the one containing the
-system `xdg-open` (this will use `aperi` to open url and files in place of
-`xdg-open` for example for opening files downloaded by chrome/chromium). It's
-also suggested to put `app-chooser` in PATH and use the rule `*=app-chooser` at the
-end of the config file to have a handy way to open all files not associated
-with anything else.
+`aperi` can be used as a standalone executable to open resources from the
+command line. It's also suggested to put `app-chooser` in PATH and use the rule
+`*=app-chooser` at the end of the config file to have a handy way to open all
+files not associated with anything else.
+
+Other programs implement application associations in different ways.
+For a very good overview see [this
+article](https://wiki.archlinux.org/title/Default_applications) in the Arch
+Wiki. To integrate `aperi` with other programs read below.
+
+### xdg-open
+
+Put a link named `xdg-open` in your path in a directory with higher precedence
+than the one containing the system `xdg-open`. This will use `aperi` to open
+url and files in place of `xdg-open` for example for opening files downloaded
+by chrome/chromium.
+
+### GIO's GAppInfo
+
+Copy `aperi.desktop` from the `extra` directory to `~/.local/share/applications`.
+Copy the file `mimeapps.list` from the `extra` directory in the xdg user config
+directory (usually `~/.config`).
+
+This file associates most known mime types with `aperi`.
+
+As noted in the Wiki article, many applications still read the `mimeapps.list` file
+from the deprecated location `~/.local/share/applications/mimeapps.list`.
+To simplify maintenance, create a link to the deprecated location:
+
+```
+ln -s ~/.config/mimeapps.list ~/.local/share/applications/mimeapps.list
+```
+
+### Midnight Commander file manager
+
+`mc` uses `xdg-open` by default. See above. Alternatively, if you prefer to open
+files in a non-blocking way, add this script in your path:
+
+```
+#!/bin/bash
+nohup aperi "$@" &
+```
+
+make it executable and set the `MC_XDG_OPEN` to the script path.
+
+### Yazi terminal file manager
+
+Set this parameters in your `yazi.toml` config file:
+
+```
+[opener]
+open = [
+    { run = 'xdg-open "$@"', desc = "Open" },
+]
+
+[open]
+rules = [
+    { name = "*", use = "open" },
+]
+```
+
