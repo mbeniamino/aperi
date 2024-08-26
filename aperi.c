@@ -42,7 +42,7 @@ int next_line(FILE* f) {
 
 typedef struct Aperi {
     // File path/url to open
-    const char* file_path;
+    char* file_path;
     // String to match
     char* rule_id;
     // Match type
@@ -169,11 +169,43 @@ int aperi_match(Aperi* aperi) {
     return 0;
 }
 
+/* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
+void percent_decode(char* s) {
+    char* src = s;
+    char* dest = s;
+    // counter of digits to decode
+    int decode = 0;
+    // decoded char
+    char c;
+    while(*src) {
+        if (decode > 0) {
+            c = c << 4;
+            if ('0' <= *src && *src <= '9') c += *src - '0';
+            if ('A' <= *src && *src <= 'F') c += *src - 'A' + 10;
+            if ('a' <= *src && *src <= 'f') c += *src - 'a' + 10;
+            --decode;
+            if (decode == 0) {
+                *dest = c;
+                ++dest;
+            }
+        } else if(*src == '%') {
+            decode = 2;
+            c = 0;
+        } else {
+            *dest = *src;
+            ++dest;
+        }
+        ++src;
+    }
+    *dest = 0;
+}
+
 // Init aperi struct members. `file_path` is the url/file to open.
-void init(Aperi* aperi, const char* file_path) {
+void init(Aperi* aperi, char* file_path) {
     // If file_path starts with file://, remove it
     if (strncmp(file_path, "file://", 7) == 0) {
         aperi->file_path = file_path + 7;
+        percent_decode(aperi->file_path);
     } else {
         aperi->file_path = file_path;
     }
