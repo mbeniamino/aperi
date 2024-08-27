@@ -6,9 +6,11 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <dbus/dbus.h>
+#include "git_version.h"
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
+        fprintf(stdout, "app-chooser version %s\n", GIT_VERSION);
         fprintf(stdout, "Usage: %s <path>\n", argv[0]);
         exit(0);
     }
