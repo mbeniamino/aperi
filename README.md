@@ -1,4 +1,4 @@
-Aperi, a simple resource opener by Matteo Beniamino.
+Aperi, a simple resource opener.
 
 ## Description
 
@@ -86,10 +86,10 @@ Wiki. To integrate `aperi` with other programs read below.
 
 ### xdg-open
 
-Put a link named `xdg-open` in your path in a directory with higher precedence
-than the one containing the system `xdg-open`. This will use `aperi` to open
-url and files in place of `xdg-open` for example for opening files downloaded
-by chrome/chromium.
+Put a link to `aperi` named `xdg-open` in your path in a directory with higher
+precedence than the one containing the system `xdg-open`. This will use `aperi`
+to open url and files in place of `xdg-open` for example for opening files
+downloaded by chrome/chromium.
 
 ### GIO's GAppInfo
 
@@ -117,7 +117,7 @@ files in a non-blocking way, add this script in your path:
 nohup aperi "$@" &
 ```
 
-make it executable and set the `MC_XDG_OPEN` to the script path.
+make it executable and set the `MC_XDG_OPEN` env variable to the script path.
 
 ### Yazi terminal file manager
 
@@ -135,3 +135,6 @@ rules = [
 ]
 ```
 
+## Author
+
+Aperi was written by Matteo Beniamino (m.beniamino@tautologica.org).
