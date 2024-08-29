@@ -1,4 +1,5 @@
 project('aperi', 'c', version: '(use git to check the version)')
+add_global_arguments('-DUSE_GIT_VERSION', language : 'c')
 
 vcs_dep = vcs_tag(command: ['git', 'describe', '--always', '--dirty'],
      input: 'git_version.h.in',

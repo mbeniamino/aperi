@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
+#ifdef USE_GIT_VERSION
 #include "git_version.h"
+#endif
 
 typedef enum { MTExact, MTEnd } MatchType;
 
@@ -355,7 +357,9 @@ void launch_associated_app(Aperi* aperi) {
 int main(int argc, char* argv[]) {
     // No args: print help
     if (argc < 2) {
+#ifdef USE_GIT_VERSION
         printf("aperi version %s\n", GIT_VERSION);
+#endif
         printf("Usage: %s <file>\n", argv[0]);
         exit(0);
     }

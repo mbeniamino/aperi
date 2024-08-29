@@ -69,6 +69,9 @@ To manually compile Aperi and app-chooser you can use something like:
 
 `gcc app-chooser.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o app-chooser`
 
+Notice that this way of building prevents generated executables to report
+their version.
+
 ## Installation
 
 `aperi` can be used as a standalone executable to open resources from the
