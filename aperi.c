@@ -245,6 +245,52 @@ void open_config_file(Aperi* aperi) {
     free(cfgpath);
 }
 
+int normalize_arg(Aperi* aperi, char** argp) {
+    int res = 0;
+    char* arg = *argp;
+
+    int unescape = 0;
+    char* dest = arg;
+    char* new_dest = 0;
+    while(*arg) {
+        if (*arg == '%' && !unescape) {
+            unescape = 1;
+        } else {
+            if (unescape) {
+                switch(*arg) {
+                    case 'f':
+                        char* rp = realpath(aperi->file_path, NULL);
+                        int len_rp = strlen(rp);
+                        int original_sz = strlen(*argp)+1;
+                        int offset_dest = dest - *argp;
+                        new_dest = malloc(original_sz-2+len_rp);
+                        strcpy(new_dest, *argp);
+                        dest = new_dest + offset_dest;
+                        strcpy(dest, rp);
+                        free(rp);
+                        dest += len_rp;
+                        res = 1;
+                        break;
+                    case 'x':
+                        res = 1;
+                        break;
+                    case '%':
+                        *dest = *arg;
+                        ++dest;
+                }
+                unescape = 0;
+            } else {
+                *dest = *arg;
+                ++dest;
+            }
+        }
+        ++arg;
+    }
+    *dest = 0;
+    if (new_dest) *argp = new_dest;
+    return res;
+}
+
 // read to the end of the line the app to launch and launch it
 void read_app_and_launch(Aperi* aperi) {
     int ch;
@@ -265,13 +311,19 @@ void read_app_and_launch(Aperi* aperi) {
     int curr_str = -1;
 
     // Read the config file one char at the time
+    int quoting = 0;
+    int last_ch_quotes = 0;
     while(1) {
         ch = getc(aperi->config_f);
         if(ch == '\n' || ch == '\r' || ch == EOF) {
             break;
-        } else if (ch == ' ')  {
+        } else if (ch == ' ' && !quoting)  {
             // separator -> set new arg flag
             new_arg = 1;
+        } else if (ch == '"' && !last_ch_quotes && quoting == 0)  {
+            quoting = 1;
+        } else if (ch == '"' && !last_ch_quotes)  {
+            quoting = 0;
         } else {
             if (new_arg) {
                 // allocate a new arg, reallocate argv if needed
@@ -297,7 +349,9 @@ void read_app_and_launch(Aperi* aperi) {
             argv[curr_arg][curr_str+1] = 0;
             ++used_str;
         }
+        last_ch_quotes = ch == '"';
     }
+
     // expand real path or use arg as is if it's a url
     int is_schema = strstr(aperi->file_path, "://") != NULL;
     if (is_schema) {
@@ -309,6 +363,18 @@ void read_app_and_launch(Aperi* aperi) {
     }
     // args terminator
     argv[used_args-1] = NULL;
+
+    // expand args placeholders
+    char** arg = argv;
+    while(arg) {
+        if (!*arg) break;
+        if (normalize_arg(aperi, arg)) {
+            argv[used_args-2] = NULL;
+        }
+        ++arg;
+    }
+
+    arg = argv;
     // exec the program
     execvp(argv[0], argv);
     fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));

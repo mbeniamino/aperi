@@ -10,19 +10,17 @@ this utility to all files without a more specific association.
 
 ## Configuration
 
-The program should be invoked with a single argument that is a URL or a path to
-open. It then reads its configuration from `$HOME/.config/aperi/config` and
-launches the associated program, if any. If the argument of the program starts
+The program should be invoked with a single argument, which can be a URL or a
+path to open. It then reads its configuration from `$HOME/.config/aperi/config`
+and launches the associated program, if any. If the program argument starts
 with `file://` this prefix will be automatically stripped and percent decoding
-of the remaining string will be performed. If the argument of the program is a
-file or a directory it will be normalized to an absolute path pointing to the
-file.
+of the remaining string will be performed. If the argument is a file or a
+directory it will be normalized to an absolute path pointing to the file.
 
-The configuration file is a sequence of lines. Empty lines or lines starting
-with `#` are ignored.
-
-The remaining lines define the executable to use to handle the file or url
-passed as the argument of the program and must follow this syntax:
+The configuration file consists of a sequence of lines. Empty lines or lines
+starting with `#` are ignored. The remaining lines define the executable to use
+to handle the file or url passed as the program argument and must follow this
+syntax:
 
 `<rule>[,<rule>]...=<executable> [<arg> ]...`
 
@@ -31,18 +29,29 @@ passed as the argument of the program and must follow this syntax:
  * a string ending with `://` . This rule matches a url starting with `<rule>`.
    For example `http://,https://=firefox` will launch firefox to open urls
    starting with `http://` or `https://`;
- * the special string '/'. This rule will match if the argument is a directory;
- * the special string '\*'. This rule will match any argument;
- * any other string `<string>`. This rule will match a file ending with
-   `.<string>` (that is any file with that extension).
+ * the special string '/'. This rule matches if the argument is a directory;
+ * the special string '\*'. This rule matches any argument;
+ * any other string `<string>`. This rule matches a file ending with
+   `.<string>` (that is, any file with that extension).
 
-`<executable>` can either be the full path to an executable, or the name of an
-executable in the PATH. The executable will be launched passing all the specified
-`<arg>`s and the `aperi` argument.
-At the moment there is no way to pass arguments containing spaces or to not pass
-the aperi argument as an extra argument to `<executable>`, but as a workaround
-you can write a small shell script embedding the command (in real life, I,
-the author, never had to write one to overcome this limitation).
+`<executable>` can be either the full path to an executable or the name of an
+executable in the PATH. By default the executable will be launched passing all
+the specified `<arg>`s plus the `aperi` argument.
+To pass an argument containing spaces, surround the argument with double quotes
+(`"`).
+To insert a verbatim double quote write two sequential double quotes (`""`).
+
+For example:
+```
+exe=echo "Execution of the following ""exe"" file is prevented:"
+```
+
+The percent sign has a special meaning when used inside an argument. A `%<c>` inside
+an argument, where `<c>` is a single character, will affect the arguments in several ways
+depending on the value of `<c>`:
+ * `%f` will be replaced with the absolute path of the aperi argument;
+ * `%x` will prevent aperi to append the aperi argument to the invoked executable;
+ * `%%` will be replaced by a single percent (`%`).
 
 Rules are checked in order. The first matching rule will be used.
 
