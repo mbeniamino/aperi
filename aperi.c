@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -244,73 +245,48 @@ void open_config_file(Aperi* aperi) {
     // Open the configuration file from $HOME/.config/aperi/config
     const char* CONFIG_BASENAME = "config";
     const char *homedir = get_homedir();
-    char* cfgpath = malloc(strlen(homedir)+strlen(CONFIG_DIR_PATH)+strlen(CONFIG_BASENAME)+1);
-    strcpy(cfgpath, homedir);
-    strcat(cfgpath, CONFIG_DIR_PATH);
+    size_t homedir_ln = strlen(homedir);
+    size_t config_dir_path_ln = strlen(CONFIG_DIR_PATH);
+    size_t config_basename_ln = strlen(CONFIG_BASENAME);
+    char* cfgpath = malloc(homedir_ln+config_dir_path_ln+config_basename_ln+1);
+    char* ptr = cfgpath;
+    strcpy(ptr, homedir);
+    ptr += homedir_ln;
+    strcpy(ptr, CONFIG_DIR_PATH);
+    ptr += config_dir_path_ln;
     strcat(cfgpath, CONFIG_BASENAME);
+    ptr += config_basename_ln;
     aperi->config_f = fopen(cfgpath, "rb");
     free(cfgpath);
-}
-
-int normalize_arg(Aperi* aperi, char** argp) {
-    int res = 0;
-    char* arg = *argp;
-
-    int unescape = 0;
-    char* dest = arg;
-    char* new_dest = 0;
-    while(*arg) {
-        if (*arg == '%' && !unescape) {
-            unescape = 1;
-        } else {
-            if (unescape) {
-                switch(*arg) {
-                    case 'f':
-                        char* rp = realpath(aperi->file_path, NULL);
-                        int len_rp = strlen(rp);
-                        int original_sz = strlen(*argp)+1;
-                        int offset_dest = dest - *argp;
-                        new_dest = malloc(original_sz-2+len_rp);
-                        strcpy(new_dest, *argp);
-                        dest = new_dest + offset_dest;
-                        strcpy(dest, rp);
-                        free(rp);
-                        dest += len_rp;
-                        res = 1;
-                        break;
-                    case 'x':
-                        res = 1;
-                        break;
-                    case '%':
-                        *dest = *arg;
-                        ++dest;
-                }
-                unescape = 0;
-            } else {
-                *dest = *arg;
-                ++dest;
-            }
-        }
-        ++arg;
-    }
-    *dest = 0;
-    if (new_dest) *argp = new_dest;
-    return res;
 }
 
 void check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->match_type != MTEnd) return;
     const char *homedir = get_homedir();
+    const char* WRAPPERS_DIR = "wrappers/";
+    size_t homedir_ln = strlen(homedir);
+    size_t config_dir_path_ln = strlen(CONFIG_DIR_PATH);
+    size_t wrappers_dir_ln = strlen(WRAPPERS_DIR);
+    char* wrapper_path = malloc(homedir_ln+config_dir_path_ln+wrappers_dir_ln+
+                                strlen(aperi->rule_id)+1);
+    char* ptr = wrapper_path;
+    strcpy(ptr, homedir);
+    ptr += homedir_ln;
+    strcpy(ptr, CONFIG_DIR_PATH);
+    ptr += config_dir_path_ln;
+    strcpy(ptr, WRAPPERS_DIR);
+    ptr += wrappers_dir_ln;
+    DIR* dir = opendir(wrapper_path);
+    // if wrappers dir doesn't exists... early exit
+    if(!dir) {
+        free(wrapper_path);
+        return;
+    }
+    closedir(dir);
     for(char* c = aperi->rule_id; *c; ++c) {
         if (*c == '.') {
             char* argv[3];
-            const char* WRAPPERS_DIR = "wrappers/";
-            char* wrapper_path = malloc(strlen(homedir)+strlen(CONFIG_DIR_PATH)+
-                                        strlen(WRAPPERS_DIR)+strlen(c+1)+1);
-            strcpy(wrapper_path, homedir);
-            strcat(wrapper_path, CONFIG_DIR_PATH);
-            strcat(wrapper_path, WRAPPERS_DIR);
-            strcat(wrapper_path, c+1);
+            strcpy(ptr, c+1);
             argv[0] = wrapper_path;
             argv[1] = realpath(aperi->file_path, NULL);
             argv[2] = NULL;
@@ -320,9 +296,9 @@ void check_for_wrapper_and_exec(Aperi *aperi) {
                 perror(NULL);
             }
             free(argv[1]);
-            free(wrapper_path);
         }
     }
+    free(wrapper_path);
 }
 
 // read to the end of the line the app to launch and launch it
@@ -398,17 +374,6 @@ void read_app_and_launch(Aperi* aperi) {
     // args terminator
     argv[used_args-1] = NULL;
 
-    // expand args placeholders
-    char** arg = argv;
-    while(arg) {
-        if (!*arg) break;
-        if (normalize_arg(aperi, arg)) {
-            argv[used_args-2] = NULL;
-        }
-        ++arg;
-    }
-
-    arg = argv;
     // exec the program
     execvp(argv[0], argv);
     fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));
