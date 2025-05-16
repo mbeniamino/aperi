@@ -11,6 +11,8 @@
 #include "git_version.h"
 #endif
 
+const char* CONFIG_DIR_PATH = "/.config/aperi/";
+
 typedef enum { MTExact, MTEnd } MatchType;
 
 /* Read a line from file f up to the next `sep` character. Return 1 if the character
@@ -232,15 +234,20 @@ void deinit(Aperi* aperi) {
     close_config_file(aperi);
 }
 
+const char* get_homedir() {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw) return "/";
+    return pw->pw_dir;
+}
+
 void open_config_file(Aperi* aperi) {
     // Open the configuration file from $HOME/.config/aperi/config
-    const char* CONFIG_REL_PATH = "/.config/aperi/config";
-    struct passwd *pw = getpwuid(getuid());
-    const char *homedir = pw->pw_dir;
-    size_t homedir_ln = strlen(homedir);
-    char* cfgpath = malloc(homedir_ln+strlen(CONFIG_REL_PATH)+1);
+    const char* CONFIG_BASENAME = "config";
+    const char *homedir = get_homedir();
+    char* cfgpath = malloc(strlen(homedir)+strlen(CONFIG_DIR_PATH)+strlen(CONFIG_BASENAME)+1);
     strcpy(cfgpath, homedir);
-    strcpy(cfgpath+homedir_ln, CONFIG_REL_PATH);
+    strcat(cfgpath, CONFIG_DIR_PATH);
+    strcat(cfgpath, CONFIG_BASENAME);
     aperi->config_f = fopen(cfgpath, "rb");
     free(cfgpath);
 }
@@ -289,6 +296,33 @@ int normalize_arg(Aperi* aperi, char** argp) {
     *dest = 0;
     if (new_dest) *argp = new_dest;
     return res;
+}
+
+void check_for_wrapper_and_exec(Aperi *aperi) {
+    if (aperi->match_type != MTEnd) return;
+    const char *homedir = get_homedir();
+    for(char* c = aperi->rule_id; *c; ++c) {
+        if (*c == '.') {
+            char* argv[3];
+            const char* WRAPPERS_DIR = "wrappers/";
+            char* wrapper_path = malloc(strlen(homedir)+strlen(CONFIG_DIR_PATH)+
+                                        strlen(WRAPPERS_DIR)+strlen(c+1)+1);
+            strcpy(wrapper_path, homedir);
+            strcat(wrapper_path, CONFIG_DIR_PATH);
+            strcat(wrapper_path, WRAPPERS_DIR);
+            strcat(wrapper_path, c+1);
+            argv[0] = wrapper_path;
+            argv[1] = realpath(aperi->file_path, NULL);
+            argv[2] = NULL;
+            execvp(argv[0], argv);
+            if (errno != ENOENT) {
+                fprintf(stderr, "Couldn't launch wrapper %s: ", argv[0]);
+                perror(NULL);
+            }
+            free(argv[1]);
+            free(wrapper_path);
+        }
+    }
 }
 
 // read to the end of the line the app to launch and launch it
@@ -384,6 +418,9 @@ void read_app_and_launch(Aperi* aperi) {
 
 // Search for a matching app and, if found, launch it
 void launch_associated_app(Aperi* aperi) {
+    // first: search for a wrapper in the wrappers directory...
+    check_for_wrapper_and_exec(aperi);
+    // if we are here no wrapper was found/worked. Continue with config file...
     open_config_file(aperi);
     FILE* f = aperi->config_f;
     if (!f) return;
