@@ -46,17 +46,29 @@ For example:
 exe=echo "Execution of the following ""exe"" file is prevented:"
 ```
 
-The percent sign has a special meaning when used inside an argument. A `%<c>` inside
-an argument, where `<c>` is a single character, will affect the arguments in several ways
-depending on the value of `<c>`:
- * `%f` will be replaced with the absolute path of the aperi argument;
- * `%x` will prevent aperi to append the aperi argument to the invoked executable;
- * `%%` will be replaced by a single percent (`%`).
-
 Rules are checked in order. The first matching rule will be used.
 
 The `extra` directory contains a sample configuration file to be copied to
 `~/.config/aperi/config` and modified as needed;
+
+In addition to the config file, aperi searches for executable files named as
+its argument extension inside the `~/.config/aperi/config/wrappers` directory.
+
+If one is found, that file is invoked with a single argument that is the full
+path to the aperi argument.
+
+This allows to handle special cases such as launching a program ignoring the
+aperi argument or passing the argument in a special way that doesn't match the
+standard behaviour to append it at the end.
+
+For example, invoking `aperi foo.jpg` would execute
+`~/.config/aperi/config/wrappers/jpg foo.jpg`, if `jpg` exists and is
+executable.
+
+Wrappers files have higher priority than lines contained in the config file.
+
+For multiple extensions, longers extensions have higher priority (for example,
+the wrapper `tar.gz` has higher priority than `gz`).
 
 ## Build instructions
 
