@@ -59,7 +59,7 @@ path to the aperi argument.
 
 This allows to handle special cases such as launching a program ignoring the
 aperi argument or passing the argument in a special way that doesn't match the
-standard behaviour to append it at the end.
+standard behaviour of appending it at the end.
 
 For example, invoking `aperi foo.jpg` would execute
 `~/.config/aperi/config/wrappers/jpg foo.jpg`, if `jpg` exists and is
