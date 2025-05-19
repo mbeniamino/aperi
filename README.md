@@ -2,7 +2,7 @@ Aperi, a simple resource opener.
 
 ## Description
 
-Aperi is a resource opener based on file extensions. It allows to to launch a
+Aperi is a resource opener based on file extensions. It allows to launch a
 configurable executable to handle a certain file or uri based on its extension
 or schema. The project also contains a utility that launches via dbus the
 standard system chooser for opening a file: the common use case it to associate
@@ -37,8 +37,8 @@ syntax:
 `<executable>` can be either the full path to an executable or the name of an
 executable in the PATH. By default the executable will be launched passing all
 the specified `<arg>`s plus the `aperi` argument.
-To pass an argument containing spaces, surround the argument with double quotes
-(`"`).
+In order to specify a rule containing commas (`,`) and equal signs (`=`) or an
+argument containing spaces, surround them with double quotes (`"`).
 To insert a verbatim double quote write two sequential double quotes (`""`).
 
 For example:

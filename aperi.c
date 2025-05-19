@@ -16,20 +16,6 @@ const char* CONFIG_DIR_PATH = "/.config/aperi/";
 
 typedef enum { MTExact, MTEnd } MatchType;
 
-/* Read a line from file f up to the next `sep` character. Return 1 if the character
- * was found or 0 if it reached the end of the line or of the file */
-int read_line_to(FILE* f, const char sep) {
-    while(1) {
-        int ch = getc(f);
-        if (ch == EOF || ch == '\n' || ch == '\r') {
-            return 0;
-        }
-        if (ch == sep) {
-            return 1;
-        }
-    }
-}
-
 /* skip to the next non empty line in file `f` */
 int next_line(FILE* f) {
     int c;
@@ -55,7 +41,43 @@ typedef struct Aperi {
     MatchType match_type;
     // Aperi config file
     FILE* config_f;
+    // the last parsed char from the config file is inside double quotes
+    int quoting;
 } Aperi;
+
+/* Get the next valid character from the configuration file. Handles doublequotes and
+ * set the aperi->quoting flag accordingly */
+int aperi_getc(Aperi* aperi) {
+    int ch = getc(aperi->config_f);
+    if (ch == '"') {
+        // we're either opening or closing a quoted sequence. Set the quoting
+        // flag and read another character
+        aperi->quoting = !aperi->quoting;
+        ch = getc(aperi->config_f);
+    }
+    if (ch == '"') {
+        // if we are here this is the second double quote in a row. Reset the quoting flag
+        // and leave the character to return as " .
+        aperi->quoting = !aperi->quoting;
+    }
+    return ch;
+}
+
+/* Read a line from file f up to the next `sep` character. Return 1 if the
+ * character was found outside quoted contexts or 0 if it reached the end of
+ * the line or of the file. quoting must be set to 1 if parsing starts inside a
+ * quoted context.*/
+int aperi_read_line_to(Aperi* aperi, const char sep) {
+    while(1) {
+        int ch = aperi_getc(aperi);
+        if (ch == EOF || ch == '\n' || ch == '\r') {
+            return 0;
+        }
+        if (!aperi->quoting && ch == sep) {
+            return 1;
+        }
+    }
+}
 
 /* Calc `rule_id` and `match_type` to match for the resource `file_path`
  * (extension, schema, /, etc...)
@@ -121,12 +143,12 @@ int aperi_match(Aperi* aperi) {
     ssize_t pattern_allocation = 64;
     char *current_pattern = (char*)malloc(pattern_allocation);
     while(1) {
-        int ch = getc(aperi->config_f);
+        int ch = aperi_getc(aperi);
         while (pattern_idx + 2 > pattern_allocation) {
             pattern_allocation *= 2;
             current_pattern = realloc(current_pattern, pattern_allocation);
         }
-        if (ch == ',' || ch == '=') {
+        if (!aperi->quoting && (ch == ',' || ch == '=')) {
             if (star) return 1;
             current_pattern[pattern_idx] = 0;
             if (aperi->match_type == MTEnd) {
@@ -138,13 +160,13 @@ int aperi_match(Aperi* aperi) {
                            aperi->rule_id + rule_id_ln - pattern_idx,
                            pattern_idx + 1) == 0) {
                     // rule matches, move to '=' and return
-                    if (ch == ',') read_line_to(aperi->config_f, '=');
+                    if (ch == ',') aperi_read_line_to(aperi, '=');
                     return 1;
                 }
             } else if (aperi->match_type == MTExact) {
                 if (rule_id[pattern_idx] == 0 && match_count == rule_id_ln) {
                     // rule matches, move to '=' and return
-                    if (ch == ',') read_line_to(aperi->config_f, '=');
+                    if (ch == ',') aperi_read_line_to(aperi, '=');
                     return 1;
                 }
             } else {
@@ -153,7 +175,7 @@ int aperi_match(Aperi* aperi) {
                 exit(2);
             }
             // no more rules on this line -> no match
-            if (ch == '=') return 0;
+            if (!aperi->quoting && ch == '=') return 0;
             pattern_idx = 0;
             match_count = 0;
             star = 0;
@@ -257,6 +279,7 @@ void open_config_file(Aperi* aperi) {
     strcat(cfgpath, CONFIG_BASENAME);
     ptr += config_basename_ln;
     aperi->config_f = fopen(cfgpath, "rb");
+    aperi->quoting = 0;
     free(cfgpath);
 }
 
@@ -321,19 +344,13 @@ void read_app_and_launch(Aperi* aperi) {
     int curr_str = -1;
 
     // Read the config file one char at the time
-    int quoting = 0;
-    int last_ch_quotes = 0;
     while(1) {
-        ch = getc(aperi->config_f);
+        ch = aperi_getc(aperi);
         if(ch == '\n' || ch == '\r' || ch == EOF) {
             break;
-        } else if (ch == ' ' && !quoting)  {
+        } else if (ch == ' ' && !aperi->quoting)  {
             // separator -> set new arg flag
             new_arg = 1;
-        } else if (ch == '"' && !last_ch_quotes && quoting == 0)  {
-            quoting = 1;
-        } else if (ch == '"' && !last_ch_quotes)  {
-            quoting = 0;
         } else {
             if (new_arg) {
                 // allocate a new arg, reallocate argv if needed
@@ -359,7 +376,6 @@ void read_app_and_launch(Aperi* aperi) {
             argv[curr_arg][curr_str+1] = 0;
             ++used_str;
         }
-        last_ch_quotes = ch == '"';
     }
 
     // expand real path or use arg as is if it's a url
@@ -414,7 +430,7 @@ void launch_associated_app(Aperi* aperi) {
                     break;
                 } else {
                     // no match: skip to next line
-                    read_line_to(f, '\n');
+                    aperi_read_line_to(aperi, '\n');
                 }
             }
         }
