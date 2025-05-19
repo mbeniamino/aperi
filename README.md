@@ -11,10 +11,11 @@ this utility to all files without a more specific association.
 ## Configuration
 
 The program should be invoked with a single argument, which can be a URL or a
-path to open. It then reads its configuration from `$HOME/.config/aperi/config`
-and launches the associated program, if any. If the program argument starts
-with `file://` this prefix will be automatically stripped and percent decoding
-of the remaining string will be performed. If the argument is a file or a
+path to open. It then reads its configuration from
+`$XDG_CONFIG_HOME/aperi/config` (usually `$HOME/.config/aperi/config`) and
+launches the associated program, if any. If the program argument starts with
+`file://` this prefix will be automatically stripped and percent decoding of
+the remaining string will be performed. If the argument is a file or a
 directory it will be normalized to an absolute path pointing to the file.
 
 The configuration file consists of a sequence of lines. Empty lines or lines

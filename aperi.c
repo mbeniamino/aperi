@@ -12,7 +12,43 @@
 #include "git_version.h"
 #endif
 
-const char* CONFIG_DIR_PATH = "/.config/aperi/";
+char* CONFIG_DIR_PATH = NULL; 
+
+const char* get_homedir() {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw) return "/";
+    return pw->pw_dir;
+}
+
+void init_config_dir_path() {
+    char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+    const char* aperi = "/aperi/";
+    size_t aperi_ln = strlen(aperi);
+    char* ptr;
+    if (xdg_config_home) {
+        size_t xdg_config_home_ln = strlen(xdg_config_home);
+        CONFIG_DIR_PATH = malloc(xdg_config_home_ln+aperi_ln+1);
+        ptr = CONFIG_DIR_PATH;
+        strcpy(ptr, xdg_config_home);
+        ptr += xdg_config_home_ln;
+    } else {
+        const char *homedir = get_homedir();
+        size_t homedir_ln = strlen(homedir);
+        const char* config = "/.config";
+        size_t config_ln = strlen("/.config");
+        CONFIG_DIR_PATH = malloc(homedir_ln+config_ln+aperi_ln+1);
+        ptr = CONFIG_DIR_PATH;
+        strcpy(ptr, homedir);
+        ptr += homedir_ln;
+        strcpy(ptr, config);
+        ptr += config_ln;
+    }
+    strcpy(ptr, aperi);
+}
+
+void deinit_config_dir_path() {
+    free(CONFIG_DIR_PATH);
+}
 
 typedef enum { MTExact, MTEnd } MatchType;
 
@@ -261,23 +297,13 @@ void deinit(Aperi* aperi) {
     close_config_file(aperi);
 }
 
-const char* get_homedir() {
-    struct passwd *pw = getpwuid(getuid());
-    if (!pw) return "/";
-    return pw->pw_dir;
-}
-
 void open_config_file(Aperi* aperi) {
     // Open the configuration file from $HOME/.config/aperi/config
     const char* CONFIG_BASENAME = "config";
-    const char *homedir = get_homedir();
-    size_t homedir_ln = strlen(homedir);
     size_t config_dir_path_ln = strlen(CONFIG_DIR_PATH);
     size_t config_basename_ln = strlen(CONFIG_BASENAME);
-    char* cfgpath = malloc(homedir_ln+config_dir_path_ln+config_basename_ln+1);
+    char* cfgpath = malloc(config_dir_path_ln+config_basename_ln+1);
     char* ptr = cfgpath;
-    strcpy(ptr, homedir);
-    ptr += homedir_ln;
     strcpy(ptr, CONFIG_DIR_PATH);
     ptr += config_dir_path_ln;
     strcat(cfgpath, CONFIG_BASENAME);
@@ -289,22 +315,19 @@ void open_config_file(Aperi* aperi) {
 
 void check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->match_type != MTEnd) return;
-    const char *homedir = get_homedir();
     const char* WRAPPERS_DIR = "wrappers/";
-    size_t homedir_ln = strlen(homedir);
     size_t config_dir_path_ln = strlen(CONFIG_DIR_PATH);
     size_t wrappers_dir_ln = strlen(WRAPPERS_DIR);
-    char* wrapper_path = malloc(homedir_ln+config_dir_path_ln+wrappers_dir_ln+
+    char* wrapper_path = malloc(config_dir_path_ln+wrappers_dir_ln+
                                 strlen(aperi->rule_id)+1);
     char* ptr = wrapper_path;
-    strcpy(ptr, homedir);
-    ptr += homedir_ln;
     strcpy(ptr, CONFIG_DIR_PATH);
     ptr += config_dir_path_ln;
     strcpy(ptr, WRAPPERS_DIR);
     ptr += wrappers_dir_ln;
     DIR* dir = opendir(wrapper_path);
     // if wrappers dir doesn't exists... early exit
+    printf("%s\n", wrapper_path);
     if(!dir) {
         free(wrapper_path);
         return;
@@ -452,11 +475,13 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
+    init_config_dir_path();
     Aperi aperi;
     init(&aperi, argv[1]);
     launch_associated_app(&aperi);
 
     deinit(&aperi);
+    deinit_config_dir_path();
 
     return 0;
 }
