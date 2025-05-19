@@ -30,7 +30,7 @@ syntax:
    For example `http://,https://=firefox` will launch firefox to open urls
    starting with `http://` or `https://`;
  * the special string '/'. This rule matches if the argument is a directory;
- * the special string '\*'. This rule matches any argument;
+ * the special string '/\*'. This rule matches any argument;
  * any other string `<string>`. This rule matches a file ending with
    `.<string>` (that is, any file with that extension).
 

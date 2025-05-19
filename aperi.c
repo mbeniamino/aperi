@@ -149,8 +149,14 @@ int aperi_match(Aperi* aperi) {
             current_pattern = realloc(current_pattern, pattern_allocation);
         }
         if (!aperi->quoting && (ch == ',' || ch == '=')) {
-            if (star) return 1;
             current_pattern[pattern_idx] = 0;
+            star = strcmp(current_pattern, "*") == 0;
+            if (star) {
+                fprintf(stderr, "aperi: '*' rule is deprecated and will be removed "
+                                "in a future version. Use '/*' instead.\n");
+            }
+            star |= strcmp(current_pattern, "/*") == 0;
+            if (star) return 1;
             if (aperi->match_type == MTEnd) {
                 // rule_id endswith
                 current_pattern[pattern_idx+1] = 0;
@@ -178,13 +184,11 @@ int aperi_match(Aperi* aperi) {
             if (!aperi->quoting && ch == '=') return 0;
             pattern_idx = 0;
             match_count = 0;
-            star = 0;
             current_pattern[0] = 0;
         } else if (ch == '\n' || ch == '\r' || ch == EOF) {
             /* end of line/file -> exit from loop */
             break;
         } else {
-            star = pattern_idx == 0 && ch == '*';
             current_pattern[pattern_idx] = ch;
             if (pattern_idx < rule_id_ln && ch == rule_id[pattern_idx]) {
                 ++match_count;
