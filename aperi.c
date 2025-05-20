@@ -116,24 +116,18 @@ void aperi_init_config_dir_path(Aperi* aperi) {
     size_t aperi_ln = strlen(aperi_path);
     char* ptr;
     if (xdg_config_home) {
-        size_t xdg_config_home_ln = strlen(xdg_config_home);
-        aperi->config_dir_path = malloc(xdg_config_home_ln+aperi_ln+1);
+        aperi->config_dir_path = malloc(strlen(xdg_config_home)+aperi_ln+1);
         ptr = aperi->config_dir_path;
-        strcpy(ptr, xdg_config_home);
-        ptr += xdg_config_home_ln;
+        ptr = stpcpy(ptr, xdg_config_home);
     } else {
         const char *homedir = get_homedir();
-        size_t homedir_ln = strlen(homedir);
         const char* config = "/.config";
-        size_t config_ln = strlen("/.config");
-        aperi->config_dir_path = malloc(homedir_ln+config_ln+aperi_ln+1);
+        aperi->config_dir_path = malloc(strlen(homedir)+strlen(config)+aperi_ln+1);
         ptr = aperi->config_dir_path;
-        strcpy(ptr, homedir);
-        ptr += homedir_ln;
-        strcpy(ptr, config);
-        ptr += config_ln;
+        ptr = stpcpy(ptr, homedir);
+        ptr = stpcpy(ptr, config);
     }
-    strcpy(ptr, aperi_path);
+    stpcpy(ptr, aperi_path);
 }
 
 int aperi_getc(Aperi* aperi) {
@@ -264,14 +258,10 @@ int aperi_line_match(Aperi* aperi) {
 void aperi_open_config_file(Aperi* aperi) {
     // Open the configuration file from $XDG_CONFIG_HOME/aperi/config
     const char* CONFIG_BASENAME = "config";
-    size_t config_dir_path_ln = strlen(aperi->config_dir_path);
-    size_t config_basename_ln = strlen(CONFIG_BASENAME);
-    char* cfgpath = malloc(config_dir_path_ln+config_basename_ln+1);
+    char* cfgpath = malloc(strlen(aperi->config_dir_path)+strlen(CONFIG_BASENAME)+1);
     char* ptr = cfgpath;
-    strcpy(ptr, aperi->config_dir_path);
-    ptr += config_dir_path_ln;
-    strcat(cfgpath, CONFIG_BASENAME);
-    ptr += config_basename_ln;
+    ptr = stpcpy(cfgpath, aperi->config_dir_path);
+    stpcpy(ptr, CONFIG_BASENAME);
     aperi->config_f = fopen(cfgpath, "rb");
     aperi->quoting = 0;
     free(cfgpath);
@@ -285,15 +275,11 @@ void aperi_close_config_file(Aperi* aperi) {
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->target_is_dir || aperi->target_is_schema) return;
     const char* WRAPPERS_DIR = "wrappers/";
-    size_t config_dir_path_ln = strlen(aperi->config_dir_path);
-    size_t wrappers_dir_ln = strlen(WRAPPERS_DIR);
-    char* wrapper_path = malloc(config_dir_path_ln+wrappers_dir_ln+
+    char* wrapper_path = malloc(strlen(aperi->config_dir_path)+strlen(WRAPPERS_DIR)+
                                 strlen(aperi->file_path)+1);
     char* ptr = wrapper_path;
-    strcpy(ptr, aperi->config_dir_path);
-    ptr += config_dir_path_ln;
-    strcpy(ptr, WRAPPERS_DIR);
-    ptr += wrappers_dir_ln;
+    ptr = stpcpy(ptr, aperi->config_dir_path);
+    ptr = stpcpy(ptr, WRAPPERS_DIR);
     DIR* dir = opendir(wrapper_path);
     // if wrappers dir doesn't exists... early exit
     if(!dir) {
