@@ -48,11 +48,8 @@ void aperi_init_config_dir_path(Aperi* aperi);
  * set the aperi->quoting flag accordingly */
 int aperi_getc(Aperi* aperi);
 
-/* Read a line from file f up to the next `sep` character. Return 1 if the
- * character was found outside quoted contexts or 0 if it reached the end of
- * the line or of the file. quoting must be set to 1 if parsing starts inside a
- * quoted context.*/
-int aperi_read_line_to(Aperi* aperi, const char sep);
+/* Read a line from file f up to the next `sep` character. */
+void aperi_read_line_to(Aperi* aperi, const char sep);
 
 /* Calc `rule_id` and `match_type` to match for the resource `file_path`
  * (extension, schema, /, etc...)
@@ -164,14 +161,11 @@ int aperi_getc(Aperi* aperi) {
     return ch;
 }
 
-int aperi_read_line_to(Aperi* aperi, const char sep) {
+void aperi_read_line_to(Aperi* aperi, const char sep) {
     while(1) {
         int ch = aperi_getc(aperi);
-        if (ch == EOF || ch == '\n' || ch == '\r') {
-            return 0;
-        }
-        if (!aperi->quoting && ch == sep) {
-            return 1;
+        if (ch == EOF || ch == '\n' || ch == '\r' || (!aperi->quoting && ch == sep)) {
+            return;
         }
     }
 }
