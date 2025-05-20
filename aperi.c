@@ -12,23 +12,13 @@
 #include "git_version.h"
 #endif
 
+/* Rule match type:
+ * MTExact - the rule must match exactly the calculated pattern
+ * MTEnd - the calculated pattern must end with "."+<rule>
+ */
 typedef enum { MTExact, MTEnd } MatchType;
 
-/* skip to the next non empty line in file `f` */
-int next_line(FILE* f) {
-    int c;
-    while(1) {
-        c = getc(f);
-        if (c == '\n' || c == '\r' || c == EOF) break;
-    }
-    ungetc(c, f);
-    while(1) {
-        c = getc(f);
-        if (c != '\n' && c != '\r') break;
-    }
-    ungetc(c, f);
-    return 0;
-}
+// Main aperi struct and related functions
 
 typedef struct Aperi {
     // File path/url to open
@@ -45,10 +35,91 @@ typedef struct Aperi {
     int quoting;
 } Aperi;
 
-const char* get_homedir() {
-    struct passwd *pw = getpwuid(getuid());
-    if (!pw) return "/";
-    return pw->pw_dir;
+// Init aperi struct members. `file_path` is the url/file to open.
+void aperi_init(Aperi* aperi, char* file_path);
+
+// Deallocate all resources allocated for the aperi struct
+void aperi_deinit(Aperi* aperi);
+
+// allocate and initialize aperi->config_dir_path
+void aperi_init_config_dir_path(Aperi* aperi);
+
+/* Get the next valid character from the configuration file. Handles doublequotes and
+ * set the aperi->quoting flag accordingly */
+int aperi_getc(Aperi* aperi);
+
+/* Read a line from file f up to the next `sep` character. Return 1 if the
+ * character was found outside quoted contexts or 0 if it reached the end of
+ * the line or of the file. quoting must be set to 1 if parsing starts inside a
+ * quoted context.*/
+int aperi_read_line_to(Aperi* aperi, const char sep);
+
+/* Calc `rule_id` and `match_type` to match for the resource `file_path`
+ * (extension, schema, /, etc...)
+ return 1 if the file doesn't exists. urls always return 0. */
+int aperi_calc_rule_id(Aperi* aperi);
+
+/* check if the current config line matches for the pattern. Read up to '=' or
+ * end of line/file, whatever comes first */
+int aperi_match(Aperi* aperi);
+
+/* open the configuration file and set aperi->config_f */
+void aperi_open_config_file(Aperi* aperi);
+
+/* close the configuration file and reset aperi->config_f */
+void aperi_close_config_file(Aperi* aperi);
+
+/* check if there's a wrapper script able to handle the current resource. If so, exec the
+ * script passing the aperi argument */
+void aperi_check_for_wrapper_and_exec(Aperi *aperi);
+
+/* check if there's a configuration rule able to handle the current resource. If so, exec the
+ * associated commend appending the aperi argument to the list of arguments*/
+void aperi_launch_associated_app(Aperi* aperi);
+
+/* this function is called when a matching rule was found while parsing the config file.
+ * Read the rest of the line and exec the associated commend appending the aperi argument 
+ * to the list of arguments */
+void aperi_read_app_and_launch(Aperi *aperi);
+
+
+// Utility functions
+
+/* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
+void percent_decode(char* s);
+
+/* skip to the next non empty line in file `f` */
+int next_line(FILE* f);
+
+/* return a pointer to a string containing the current user home directory.
+ * The string must not be modified or freed */
+const char* get_homedir();
+
+// Implementation
+
+void aperi_init(Aperi* aperi, char* file_path) {
+    aperi_init_config_dir_path(aperi);
+    // If file_path starts with file://, remove it
+    if (strncmp(file_path, "file://", 7) == 0) {
+        aperi->file_path = file_path + 7;
+        percent_decode(aperi->file_path);
+    } else {
+        aperi->file_path = file_path;
+    }
+    aperi->rule_id = NULL;
+
+    // Retrieve and set the file rule_id. If the file doesn't exist exit with an error
+    if (aperi_calc_rule_id(aperi) != 0) {
+        fprintf(stderr, "Couldn't stat %s. Exiting.\n", aperi->file_path);
+        exit(1);
+    }
+}
+
+void aperi_deinit(Aperi* aperi) {
+    free(aperi->rule_id);
+    aperi->rule_id = NULL;
+    aperi_close_config_file(aperi);
+    free(aperi->config_dir_path);
 }
 
 void aperi_init_config_dir_path(Aperi* aperi) {
@@ -77,8 +148,6 @@ void aperi_init_config_dir_path(Aperi* aperi) {
     strcpy(ptr, aperi_path);
 }
 
-/* Get the next valid character from the configuration file. Handles doublequotes and
- * set the aperi->quoting flag accordingly */
 int aperi_getc(Aperi* aperi) {
     int ch = getc(aperi->config_f);
     if (ch == '"') {
@@ -95,10 +164,6 @@ int aperi_getc(Aperi* aperi) {
     return ch;
 }
 
-/* Read a line from file f up to the next `sep` character. Return 1 if the
- * character was found outside quoted contexts or 0 if it reached the end of
- * the line or of the file. quoting must be set to 1 if parsing starts inside a
- * quoted context.*/
 int aperi_read_line_to(Aperi* aperi, const char sep) {
     while(1) {
         int ch = aperi_getc(aperi);
@@ -111,9 +176,6 @@ int aperi_read_line_to(Aperi* aperi, const char sep) {
     }
 }
 
-/* Calc `rule_id` and `match_type` to match for the resource `file_path`
- * (extension, schema, /, etc...)
- return 1 if the file doesn't exists. urls always return 0. */
 int aperi_calc_rule_id(Aperi* aperi) {
     int exists = 0;
     // Check if file exists. If it does and it's a directory return the rule id '/'
@@ -163,8 +225,6 @@ int aperi_calc_rule_id(Aperi* aperi) {
     return !exists;
 }
 
-/* check if the current config line matches for the pattern. Read up to '=' or
- * end of line/file, whatever comes first */
 int aperi_match(Aperi* aperi) {
     int pattern_idx = 0;
     int match_count = 0;
@@ -233,70 +293,8 @@ int aperi_match(Aperi* aperi) {
     return 0;
 }
 
-/* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
-void percent_decode(char* s) {
-    char* src = s;
-    char* dest = s;
-    // counter of digits to decode
-    int decode = 0;
-    // decoded char
-    char c;
-    while(*src) {
-        if (decode > 0) {
-            c = c << 4;
-            if ('0' <= *src && *src <= '9') c += *src - '0';
-            if ('A' <= *src && *src <= 'F') c += *src - 'A' + 10;
-            if ('a' <= *src && *src <= 'f') c += *src - 'a' + 10;
-            --decode;
-            if (decode == 0) {
-                *dest = c;
-                ++dest;
-            }
-        } else if(*src == '%') {
-            decode = 2;
-            c = 0;
-        } else {
-            *dest = *src;
-            ++dest;
-        }
-        ++src;
-    }
-    *dest = 0;
-}
-
-// Init aperi struct members. `file_path` is the url/file to open.
-void init(Aperi* aperi, char* file_path) {
-    aperi_init_config_dir_path(aperi);
-    // If file_path starts with file://, remove it
-    if (strncmp(file_path, "file://", 7) == 0) {
-        aperi->file_path = file_path + 7;
-        percent_decode(aperi->file_path);
-    } else {
-        aperi->file_path = file_path;
-    }
-    aperi->rule_id = NULL;
-
-    // Retrieve and set the file rule_id. If the file doesn't exist exit with an error
-    if (aperi_calc_rule_id(aperi) != 0) {
-        fprintf(stderr, "Couldn't stat %s. Exiting.\n", aperi->file_path);
-        exit(1);
-    }
-}
-
-void close_config_file(Aperi* aperi) {
-    if(aperi->config_f) fclose(aperi->config_f);
-    aperi->config_f = 0;
-}
-
-void deinit(Aperi* aperi) {
-    free(aperi->rule_id);
-    aperi->rule_id = NULL;
-    close_config_file(aperi);
-    free(aperi->config_dir_path);
-}
-
-void open_config_file(Aperi* aperi) {
-    // Open the configuration file from $HOME/.config/aperi/config
+void aperi_open_config_file(Aperi* aperi) {
+    // Open the configuration file from $XDG_CONFIG_HOME/aperi/config
     const char* CONFIG_BASENAME = "config";
     size_t config_dir_path_ln = strlen(aperi->config_dir_path);
     size_t config_basename_ln = strlen(CONFIG_BASENAME);
@@ -311,7 +309,12 @@ void open_config_file(Aperi* aperi) {
     free(cfgpath);
 }
 
-void check_for_wrapper_and_exec(Aperi *aperi) {
+void aperi_close_config_file(Aperi* aperi) {
+    if(aperi->config_f) fclose(aperi->config_f);
+    aperi->config_f = 0;
+}
+
+void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->match_type != MTEnd) return;
     const char* WRAPPERS_DIR = "wrappers/";
     size_t config_dir_path_ln = strlen(aperi->config_dir_path);
@@ -349,8 +352,47 @@ void check_for_wrapper_and_exec(Aperi *aperi) {
     free(wrapper_path);
 }
 
-// read to the end of the line the app to launch and launch it
-void read_app_and_launch(Aperi* aperi) {
+void aperi_launch_associated_app(Aperi* aperi) {
+    // first: search for a wrapper in the wrappers directory...
+    aperi_check_for_wrapper_and_exec(aperi);
+    // if we are here no wrapper was found/worked. Continue with config file...
+    aperi_open_config_file(aperi);
+    FILE* f = aperi->config_f;
+    if (!f) return;
+    int eof = 0;
+    while(!eof) {
+        int ch = getc(f);
+        ungetc(ch, f);
+        switch(ch) {
+            case '#':
+            case ';':
+            case '\n':
+            case '\r':
+                // comment/empty line: skip to next valid line
+                next_line(f);
+                break;
+            case EOF:
+                eof = 1;
+                break;
+            default:
+            {
+                // check if the current line matches the rule
+                int got_match = aperi_match(aperi);
+                if (got_match) {
+                    // match: launch the associated program
+                    aperi_read_app_and_launch(aperi);
+                    break;
+                } else {
+                    // no match: skip to next line
+                    aperi_read_line_to(aperi, '\n');
+                }
+            }
+        }
+    }
+    aperi_close_config_file(aperi);
+}
+
+void aperi_read_app_and_launch(Aperi* aperi) {
     int ch;
 
     // next char starts a new argument
@@ -422,45 +464,55 @@ void read_app_and_launch(Aperi* aperi) {
     free(argv);
 }
 
-// Search for a matching app and, if found, launch it
-void launch_associated_app(Aperi* aperi) {
-    // first: search for a wrapper in the wrappers directory...
-    check_for_wrapper_and_exec(aperi);
-    // if we are here no wrapper was found/worked. Continue with config file...
-    open_config_file(aperi);
-    FILE* f = aperi->config_f;
-    if (!f) return;
-    int eof = 0;
-    while(!eof) {
-        int ch = getc(f);
-        ungetc(ch, f);
-        switch(ch) {
-            case '#':
-            case ';':
-            case '\n':
-            case '\r':
-                // comment/empty line: skip to next valid line
-                next_line(f);
-                break;
-            case EOF:
-                eof = 1;
-                break;
-            default:
-            {
-                // check if the current line matches the rule
-                int got_match = aperi_match(aperi);
-                if (got_match) {
-                    // match: launch the associated program
-                    read_app_and_launch(aperi);
-                    break;
-                } else {
-                    // no match: skip to next line
-                    aperi_read_line_to(aperi, '\n');
-                }
+void percent_decode(char* s) {
+    char* src = s;
+    char* dest = s;
+    // counter of digits to decode
+    int decode = 0;
+    // decoded char
+    char c;
+    while(*src) {
+        if (decode > 0) {
+            c = c << 4;
+            if ('0' <= *src && *src <= '9') c += *src - '0';
+            if ('A' <= *src && *src <= 'F') c += *src - 'A' + 10;
+            if ('a' <= *src && *src <= 'f') c += *src - 'a' + 10;
+            --decode;
+            if (decode == 0) {
+                *dest = c;
+                ++dest;
             }
+        } else if(*src == '%') {
+            decode = 2;
+            c = 0;
+        } else {
+            *dest = *src;
+            ++dest;
         }
+        ++src;
     }
-    close_config_file(aperi);
+    *dest = 0;
+}
+
+int next_line(FILE* f) {
+    int c;
+    while(1) {
+        c = getc(f);
+        if (c == '\n' || c == '\r' || c == EOF) break;
+    }
+    ungetc(c, f);
+    while(1) {
+        c = getc(f);
+        if (c != '\n' && c != '\r') break;
+    }
+    ungetc(c, f);
+    return 0;
+}
+
+const char* get_homedir() {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw) return "/";
+    return pw->pw_dir;
 }
 
 int main(int argc, char* argv[]) {
@@ -474,10 +526,9 @@ int main(int argc, char* argv[]) {
     }
 
     Aperi aperi;
-    init(&aperi, argv[1]);
-    launch_associated_app(&aperi);
-
-    deinit(&aperi);
+    aperi_init(&aperi, argv[1]);
+    aperi_launch_associated_app(&aperi);
+    aperi_deinit(&aperi);
 
     return 0;
 }
