@@ -322,7 +322,6 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     ptr += wrappers_dir_ln;
     DIR* dir = opendir(wrapper_path);
     // if wrappers dir doesn't exists... early exit
-    printf("%s\n", wrapper_path);
     if(!dir) {
         free(wrapper_path);
         return;
