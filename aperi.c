@@ -399,8 +399,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     }
 
     // expand real path or use arg as is if it's a url
-    int is_schema = strstr(aperi->file_path, "://") != NULL;
-    if (is_schema) {
+    if (aperi->target_is_schema) {
         int pathlen = strlen(aperi->file_path);
         argv[used_args-2] = malloc(pathlen+1);
         strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
