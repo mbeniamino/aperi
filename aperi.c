@@ -17,10 +17,10 @@
 typedef struct Aperi {
     // File path/url to open
     char* file_path;
-    // if != 0, target is a directory
-    int target_is_dir;
-    // if != 0, target is a url
-    int target_is_schema;
+    // if != 0, argument is a directory
+    int arg_is_dir;
+    // if != 0, argument is a url
+    int arg_is_schema;
     // Path to the config directory
     char* config_dir_path;
     // Aperi config file
@@ -68,9 +68,10 @@ void aperi_launch_associated_app(Aperi* aperi);
  * to the list of arguments */
 void aperi_read_app_and_launch(Aperi *aperi);
 
-/* check if the current target is a directory, a URI or a file setting the relative flags
- * in the aperi structure. Return 1 if the file is a non existant file or directory. */
-int aperi_analyze_target(Aperi* aperi);
+/* check if the current argument is a directory, a URI or a file setting the
+ * relative flags in the aperi structure. Return 1 if the file is a non
+ * existant file or directory. */
+int aperi_analyze_arg(Aperi* aperi);
 
 /* Replace argp with a string where all placeholders (like %f) are substituted with their
  * expanded value */
@@ -103,7 +104,7 @@ void aperi_init(Aperi* aperi, char* file_path) {
         aperi->file_path = file_path;
     }
 
-    if (aperi_analyze_target(aperi) != 0)  {
+    if (aperi_analyze_arg(aperi) != 0)  {
         fprintf(stderr, "Couldn't stat %s. Exiting.\n", aperi->file_path);
         exit(1);
     }
@@ -159,17 +160,17 @@ void aperi_read_line_to(Aperi* aperi, const char sep) {
     }
 }
 
-int aperi_analyze_target(Aperi* aperi) {
+int aperi_analyze_arg(Aperi* aperi) {
     int exists = 0;
-    aperi->target_is_dir = 0;
-    aperi->target_is_schema = 0;
+    aperi->arg_is_dir = 0;
+    aperi->arg_is_schema = 0;
 
     // Check if file exists. If it does and it's a directory set the is_dir flag '/'
     struct stat statbuf;
     if (stat(aperi->file_path, &statbuf) == 0) {
         exists = 1;
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-            aperi->target_is_dir = 1;
+            aperi->arg_is_dir = 1;
         }
     }
 
@@ -182,13 +183,13 @@ int aperi_analyze_target(Aperi* aperi) {
             // found '://' -> return the string up to :// included
             ++schema_idx;
             if (schema_id[schema_idx] == 0) {
-                aperi->target_is_schema = 1;
+                aperi->arg_is_schema = 1;
             }
         } else {
             schema_idx = 0;
         }
     }
-    return !exists && !aperi->target_is_schema;
+    return !exists && !aperi->arg_is_schema;
 }
 
 int aperi_line_match(Aperi* aperi) {
@@ -217,11 +218,11 @@ int aperi_line_match(Aperi* aperi) {
             int match = 0;
             if (star) {
                 match = 1;
-            } else if (aperi->target_is_dir) {
+            } else if (aperi->arg_is_dir) {
                 match = strcmp(current_pattern, "/") == 0;
-            } else if (aperi->target_is_schema) {                
+            } else if (aperi->arg_is_schema) {                
                 match = strncmp(aperi->file_path, current_pattern, pattern_idx) == 0;
-            } else if (!aperi->target_is_schema && !aperi->target_is_dir) {
+            } else if (!aperi->arg_is_schema && !aperi->arg_is_dir) {
                 // file finisce con .<pattern>
                 current_pattern[pattern_idx+1] = 0;
                 if(file_path_ln - pattern_idx - 1 >= 0 &&
@@ -277,7 +278,7 @@ void aperi_close_config_file(Aperi* aperi) {
 }
 
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
-    if (aperi->target_is_dir || aperi->target_is_schema) return;
+    if (aperi->arg_is_dir || aperi->arg_is_schema) return;
     const char* WRAPPERS_DIR = "wrappers/";
     char* wrapper_path = malloc(strlen(aperi->config_dir_path)+strlen(WRAPPERS_DIR)+
                                 strlen(aperi->file_path)+1);
@@ -408,7 +409,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
 
     // expand real path or use arg as is if it's a url
     if(!handle_placeholders) {
-        if (aperi->target_is_schema) {
+        if (aperi->arg_is_schema) {
             int pathlen = strlen(aperi->file_path);
             argv[used_args-2] = malloc(pathlen+1);
             strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
