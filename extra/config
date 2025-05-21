@@ -1,0 +1,32 @@
+# Open *.mp4 files with mpv (this must be somewhere in $PATH)
+mp4=mpv
+
+# Open *.pdf and *.md files with okular
+pdf,md=okular
+
+# Open *.png and *.jpg with a custom command, using the absolute path
+png,jpg=/home/benji/bin/iview
+
+# Open http:// and https:// urls with firefox
+http://,https://=firefox
+
+# Open office files via OnlyOffice via flatpak (notice the multiple arguments)
+xlsx,docx,xls,doc=flatpak run org.onlyoffice.desktopeditors
+
+# The first rule to match is the one that will be used
+# Open *.tar.gz files with Nautilus
+tar.gz=nautilus
+# Open *.gz files with Ark (notice: not for tar.gz, handled by the previous rule)
+gz=ark
+
+# rule introduced by =% will handle % placeholders like %f and %%
+# To try this example, demonstrating the use of quotes and placeholders, pass a *.test file
+test=%echo "The argument ""%f"" is testing the use of the ""%%f"" placeholder"
+# To specify an executable starting with `%` (really?), surround it with doublequotes.
+test.2="%foo" bar
+
+# Open folders with Nautilus
+/=nautilus
+
+# Open all non previously matched files/uris with app-chooser
+/*=app-chooser
