@@ -23,7 +23,7 @@ starting with `#` are ignored. The remaining lines define the executable to use
 to handle the file or url passed as the program argument and must follow this
 syntax:
 
-`<rule>[,<rule>]...=<executable> [<arg> ]...`
+`<rule>[,<rule>]...=[%]<executable> [<arg> ]...`
 
 `<rule>` can be:
 
@@ -36,15 +36,28 @@ syntax:
    `.<string>` (that is, any file with that extension).
 
 `<executable>` can be either the full path to an executable or the name of an
-executable in the PATH. By default the executable will be launched passing all
-the specified `<arg>`s plus the `aperi` argument.
+executable in the PATH. The executable will be launched passing all
+the specified `<arg>`s. By default the `aperi` argument will be also appended
+to the arguments of the executable, but putting a `%` character after the `=`
+changes this behaviour: in this case the aperi argument won't be automatically
+passed as an extra argument, and placeholder will be expanded. Placeholders are
+strings in the form "%\<char\>".
+For the moment these placeholders are supported:
+ * `%f` : will be replaced with the full path to the aperi argument;
+ * `%%` : will be replaced with a verbatim `%`.
+
+Using other combinations is invalid and will result in undefined behaviour (but
+not in a crash or the program being stuck in a loop).
+
 In order to specify a rule containing commas (`,`) and equal signs (`=`) or an
-argument containing spaces, surround them with double quotes (`"`).
+argument containing spaces or a starting percent character (`%`), surround them
+with double quotes (`"`).
 To insert a verbatim double quote write two sequential double quotes (`""`).
 
 For example:
 ```
-exe=echo "Execution of the following ""exe"" file is prevented:"
+test.1=%echo "The argument ""%f"" is testing the use of the ""%%f"" placeholder"
+test.2=%echo "This is a test showing a verbatim %% sign"
 ```
 
 Rules are checked in order. The first matching rule will be used.

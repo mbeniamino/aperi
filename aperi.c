@@ -72,6 +72,10 @@ void aperi_read_app_and_launch(Aperi *aperi);
  * in the aperi structure. Return 1 if the file is a non existant file or directory. */
 int aperi_analyze_target(Aperi* aperi);
 
+/* Replace argp with a string where all placeholders (like %f) are substituted with their
+ * expanded value */
+void aperi_normalize_arg(Aperi* aperi, char** argp);
+
 // Utility functions
 
 /* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
@@ -362,12 +366,16 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     int allocated_str = 0;
     int used_str = 0;
     int curr_str = -1;
+    int handle_placeholders = 0;
 
     // Read the config file one char at the time
     while(1) {
         ch = aperi_getc(aperi);
         if(ch == '\n' || ch == '\r' || ch == EOF) {
             break;
+        } else if (ch == '%' && !aperi->quoting && allocated_str == 0)  {
+            handle_placeholders = 1;
+            continue;
         } else if (ch == ' ' && !aperi->quoting)  {
             // separator -> set new arg flag
             new_arg = 1;
@@ -399,21 +407,72 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     }
 
     // expand real path or use arg as is if it's a url
-    if (aperi->target_is_schema) {
-        int pathlen = strlen(aperi->file_path);
-        argv[used_args-2] = malloc(pathlen+1);
-        strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
+    if(!handle_placeholders) {
+        if (aperi->target_is_schema) {
+            int pathlen = strlen(aperi->file_path);
+            argv[used_args-2] = malloc(pathlen+1);
+            strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
+        } else {
+            argv[used_args-2] = realpath(aperi->file_path, NULL);
+        }
     } else {
-        argv[used_args-2] = realpath(aperi->file_path, NULL);
+        argv[used_args-2] = NULL;
     }
     // args terminator
     argv[used_args-1] = NULL;
+
+    if (handle_placeholders) {
+        for(char** arg = argv; *arg; ++arg) {
+            aperi_normalize_arg(aperi, arg);
+        }
+    }
 
     // exec the program
     execvp(argv[0], argv);
     fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));
     for(int i = 0; i < used_args; ++i) free(argv[i]);
     free(argv);
+}
+
+void aperi_normalize_arg(Aperi* aperi, char** argp) {
+    char* arg = *argp;
+
+    int unescape = 0;
+    char* dest = arg;
+    char* new_dest = 0;
+    while(*arg) {
+        if (*arg == '%' && !unescape) {
+            unescape = 1;
+        } else {
+            if (unescape) {
+                switch(*arg) {
+                    case 'f':
+                        char* rp = realpath(aperi->file_path, NULL);
+                        int len_rp = strlen(rp);
+                        int original_sz = strlen(*argp)+1;
+                        int offset_dest = dest - *argp;
+                        new_dest = malloc(original_sz-2+len_rp);
+                        strcpy(new_dest, *argp);
+                        dest = new_dest + offset_dest;
+                        strcpy(dest, rp);
+                        free(rp);
+                        dest += len_rp;
+                        break;
+                    case '%':
+                        *dest = *arg;
+                        ++dest;
+                }
+                unescape = 0;
+            } else {
+                *dest = *arg;
+                ++dest;
+            }
+        }
+        ++arg;
+    }
+    *dest = 0;
+    if (new_dest) *argp = new_dest;
+    return;
 }
 
 void percent_decode(char* s) {
