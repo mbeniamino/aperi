@@ -296,8 +296,7 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
             argv[2] = NULL;
             execvp(argv[0], argv);
             if (errno != ENOENT) {
-                fprintf(stderr, "Couldn't launch wrapper %s: ", argv[0]);
-                perror(NULL);
+                fprintf(stderr, "Couldn't launch wrapper %s: %s\n", argv[0], strerror(errno));
             }
             free(argv[1]);
         }
