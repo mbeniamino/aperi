@@ -1,3 +1,11 @@
+v 0.7
+
+- Honor XDG_CONFIG_HOME variable, if present, to find the config directory
+- Deprecated '*' rule, replaced by '/*' rule
+- Added support for placeholders in launcher rules
+- Added support for quoting via `"` in configuration file, to enable the use
+of `,` and `=` in rules patterns and of spaces in command arguments
+
 v 0.6
 
 - Added output of the version number to the usage string
