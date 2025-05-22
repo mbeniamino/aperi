@@ -118,21 +118,17 @@ void aperi_deinit(Aperi* aperi) {
 void aperi_init_config_dir_path(Aperi* aperi) {
     char *xdg_config_home = getenv("XDG_CONFIG_HOME");
     const char* aperi_path = "/aperi/";
-    size_t aperi_ln = strlen(aperi_path);
-    char* ptr;
     if (xdg_config_home) {
-        aperi->config_dir_path = malloc(strlen(xdg_config_home)+aperi_ln+1);
-        ptr = aperi->config_dir_path;
-        ptr = stpcpy(ptr, xdg_config_home);
+        int ln = snprintf(NULL, 0, "%s%s", xdg_config_home, aperi_path);
+        aperi->config_dir_path = malloc(ln+1);
+        snprintf(aperi->config_dir_path, ln+1, "%s%s", xdg_config_home, aperi_path);
     } else {
         const char *homedir = get_homedir();
         const char* config = "/.config";
-        aperi->config_dir_path = malloc(strlen(homedir)+strlen(config)+aperi_ln+1);
-        ptr = aperi->config_dir_path;
-        ptr = stpcpy(ptr, homedir);
-        ptr = stpcpy(ptr, config);
+        int ln = snprintf(NULL, 0, "%s%s%s", homedir, config, aperi_path);
+        aperi->config_dir_path = malloc(ln+1);
+        snprintf(aperi->config_dir_path, ln+1, "%s%s%s", homedir, config, aperi_path);
     }
-    stpcpy(ptr, aperi_path);
 }
 
 int aperi_getc(Aperi* aperi) {
@@ -280,11 +276,10 @@ void aperi_close_config_file(Aperi* aperi) {
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->arg_is_dir || aperi->arg_is_schema) return;
     const char* WRAPPERS_DIR = "wrappers/";
-    char* wrapper_path = malloc(strlen(aperi->config_dir_path)+strlen(WRAPPERS_DIR)+
-                                strlen(aperi->file_path)+1);
-    char* ptr = wrapper_path;
-    ptr = stpcpy(ptr, aperi->config_dir_path);
-    ptr = stpcpy(ptr, WRAPPERS_DIR);
+    int ln = snprintf(NULL, 0, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
+    char* wrapper_path = malloc(ln+1);
+    snprintf(wrapper_path, ln+1, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
+    char* ptr = &wrapper_path[ln];
     DIR* dir = opendir(wrapper_path);
     // if wrappers dir doesn't exists... early exit
     if(!dir) {
