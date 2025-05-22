@@ -529,8 +529,8 @@ const char* get_homedir() {
 
 int strnicmp(const char* s1, const char* s2, size_t n) {
     for (size_t i = 0; i < n; ++i) {
-        char c1 = tolower(s1[i]);
-        char c2 = tolower(s2[i]);
+        unsigned char c1 = tolower((unsigned char)s1[i]);
+        unsigned char c2 = tolower((unsigned char)s2[i]);
         if(c1 != c2) {
             return s1[i] < s2[i] ? -1 : 1;
         }
