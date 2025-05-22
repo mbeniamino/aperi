@@ -220,7 +220,7 @@ int aperi_line_match(Aperi* aperi) {
                 match = 1;
             } else if (aperi->arg_is_dir) {
                 match = strcmp(current_pattern, "/") == 0;
-            } else if (aperi->arg_is_schema) {                
+            } else if (aperi->arg_is_schema) {
                 match = strncmp(aperi->file_path, current_pattern, pattern_idx) == 0;
             } else if (!aperi->arg_is_schema && !aperi->arg_is_dir) {
                 // file finisce con .<pattern>
