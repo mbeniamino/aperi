@@ -12,15 +12,16 @@
 #include "git_version.h"
 #endif
 
+// Argument types (file, directory or uri)
+typedef enum ArgType { ATFile, ATDir, ATURI } ArgType;
+
 // Main aperi struct and related functions
 
 typedef struct Aperi {
     // File path/url to open
     char* file_path;
-    // if != 0, argument is a directory
-    int arg_is_dir;
-    // if != 0, argument is a url
-    int arg_is_schema;
+    // Type of the argument (file, directory, uri)
+    ArgType arg_type;
     // Path to the config directory
     char* config_dir_path;
     // Aperi config file
@@ -69,7 +70,7 @@ void aperi_launch_associated_app(Aperi* aperi);
 void aperi_read_app_and_launch(Aperi *aperi);
 
 /* check if the current argument is a directory, a URI or a file setting the
- * relative flags in the aperi structure. Return 1 if the file is a non
+ * relative member in the aperi structure. Return 1 if the file is a non
  * existant file or directory. */
 int aperi_analyze_arg(Aperi* aperi);
 
@@ -157,35 +158,21 @@ void aperi_read_line_to(Aperi* aperi, const char sep) {
 }
 
 int aperi_analyze_arg(Aperi* aperi) {
-    int exists = 0;
-    aperi->arg_is_dir = 0;
-    aperi->arg_is_schema = 0;
+    aperi->arg_type = ATFile;
 
-    // Check if file exists. If it does and it's a directory set the is_dir flag '/'
+    // Check if file exists. If it does, set the dir type when needed, and return'/'
     struct stat statbuf;
     if (stat(aperi->file_path, &statbuf) == 0) {
-        exists = 1;
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-            aperi->arg_is_dir = 1;
+            aperi->arg_type = ATDir;
         }
+        return 0;
     }
 
-    int idx = -1;
-    char ch;
-    const char* schema_id = "://";
-    int schema_idx = 0;
-    while((ch = aperi->file_path[++idx])) {
-        if (ch == schema_id[schema_idx]) {
-            // found '://' -> return the string up to :// included
-            ++schema_idx;
-            if (schema_id[schema_idx] == 0) {
-                aperi->arg_is_schema = 1;
-            }
-        } else {
-            schema_idx = 0;
-        }
+    if (strstr(aperi->file_path, "://")) {
+        aperi->arg_type = ATURI;
     }
-    return !exists && !aperi->arg_is_schema;
+    return aperi->arg_type != ATURI;
 }
 
 int aperi_line_match(Aperi* aperi) {
@@ -214,11 +201,11 @@ int aperi_line_match(Aperi* aperi) {
             int match = 0;
             if (star) {
                 match = 1;
-            } else if (aperi->arg_is_dir) {
+            } else if (aperi->arg_type == ATDir) {
                 match = strcmp(current_pattern, "/") == 0;
-            } else if (aperi->arg_is_schema) {
+            } else if (aperi->arg_type == ATURI) {
                 match = strncmp(aperi->file_path, current_pattern, pattern_idx) == 0;
-            } else if (!aperi->arg_is_schema && !aperi->arg_is_dir) {
+            } else if (aperi->arg_type == ATFile) {
                 // file finisce con .<pattern>
                 current_pattern[pattern_idx+1] = 0;
                 if(file_path_ln - pattern_idx - 1 >= 0 &&
@@ -274,7 +261,7 @@ void aperi_close_config_file(Aperi* aperi) {
 }
 
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
-    if (aperi->arg_is_dir || aperi->arg_is_schema) return;
+    if (aperi->arg_type != ATFile) return;
     const char* WRAPPERS_DIR = "wrappers/";
     int ln = snprintf(NULL, 0, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
     char* wrapper_path = malloc(ln+1);
@@ -403,7 +390,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
 
     // expand real path or use arg as is if it's a url
     if(!handle_placeholders) {
-        if (aperi->arg_is_schema) {
+        if (aperi->arg_type == ATURI) {
             int pathlen = strlen(aperi->file_path);
             argv[used_args-2] = malloc(pathlen+1);
             strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
