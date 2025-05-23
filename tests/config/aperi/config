@@ -1,0 +1,49 @@
+# single extension
+a=echo 1
+
+# multiple extensions
+b,c=echo 2
+
+# single uri
+d://=echo 3
+
+# multiple uris
+e://,f://=echo 4
+
+# folder
+/=echo 5
+
+# no arg
+f=%echo 6
+
+# %% placeholder
+g=%echo 7 %%f
+
+# %f placeholder
+h=%echo 8 %f foo
+
+# literal %%
+i=echo 9 %%
+
+# literal %f
+j=echo 10 %f
+
+# space in arguments
+k=printf "%q" "12 13"
+
+# '"' in arguments
+l=echo "13""14"
+m=echo """1516"
+n=echo "1718"""
+
+# literal "," extension
+","=echo 19
+
+# literal "=" extension
+"="=echo 20
+
+# literal '"' extension
+""=echo 21
+
+# catchall
+/*=echo 999

@@ -1,0 +1,53 @@
+===files/dir===
+5 dir
+
+===files/test."===
+21 test."
+
+===files/test.*===
+999 test.*
+
+===files/test.,===
+19 test.,
+
+===files/test.====
+20 test.=
+
+===files/test.a===
+1 test.a
+
+===files/test.b===
+2 test.b
+
+===files/test.c===
+2 test.c
+
+===files/test.f===
+6
+
+===files/test.g===
+7 %f
+
+===files/test.h===
+8 test.h foo
+
+===files/test.i===
+9 %% test.i
+
+===files/test.j===
+10 %f test.j
+
+===files/test.k===
+'12 13'test.k
+===files/test.l===
+13"14 test.l
+
+===files/test.m===
+"1516 test.m
+
+===files/test.n===
+1718" test.n
+
+===files/test.wrapper===
+998 test.wrapper
+
