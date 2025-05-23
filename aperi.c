@@ -263,8 +263,17 @@ void aperi_close_config_file(Aperi* aperi) {
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->arg_type != ATFile) return;
     const char* WRAPPERS_DIR = "wrappers/";
+    char* basename = &aperi->file_path[strlen(aperi->file_path)];
+    while(basename != aperi->file_path) {
+        if (*basename == '/') {
+            basename++;
+            break;
+        }
+        --basename;
+    }
+
     int ln = snprintf(NULL, 0, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
-    char* wrapper_path = malloc(ln+1);
+    char* wrapper_path = malloc(ln+strlen(basename)+1);
     snprintf(wrapper_path, ln+1, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
     char* ptr = &wrapper_path[ln];
     DIR* dir = opendir(wrapper_path);
@@ -274,7 +283,7 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
         return;
     }
     closedir(dir);
-    for(char* c = aperi->file_path; *c; ++c) {
+    for(char* c = basename; *c; ++c) {
         if (*c == '.') {
             char* argv[3];
             strcpy(ptr, c+1);
