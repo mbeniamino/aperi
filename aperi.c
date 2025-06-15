@@ -313,7 +313,6 @@ void aperi_launch_associated_app(Aperi* aperi) {
         ungetc(ch, f);
         switch(ch) {
             case '#':
-            case ';':
             case '\n':
             case '\r':
                 // comment/empty line: skip to next valid line
