@@ -44,7 +44,7 @@ void aperi_init_config_dir_path(Aperi* aperi);
 int aperi_getc(Aperi* aperi);
 
 /* Read a line from file f up to the next `sep` character. */
-void aperi_read_line_to(Aperi* aperi, const char sep);
+void aperi_read_line_to(Aperi* aperi, char sep);
 
 /* check if the current config line matches for the pattern. Read up to '=' or
  * end of line/file, whatever comes first */
@@ -148,7 +148,7 @@ int aperi_getc(Aperi* aperi) {
     return ch;
 }
 
-void aperi_read_line_to(Aperi* aperi, const char sep) {
+void aperi_read_line_to(Aperi* aperi, char sep) {
     while(1) {
         int ch = aperi_getc(aperi);
         if (ch == EOF || ch == '\n' || ch == '\r' || (!aperi->quoting && ch == sep)) {
