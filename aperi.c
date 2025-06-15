@@ -46,7 +46,7 @@ int aperi_getc(Aperi* aperi);
 /* Read a line from file f up to the next `sep` character. */
 void aperi_read_line_to(Aperi* aperi, char sep);
 
-/* check if the current config line matches for the pattern. Read up to '=' or
+/* check if the current config line matches the pattern. Read up to '=' or
  * end of line/file, whatever comes first */
 int aperi_line_match(Aperi* aperi);
 
@@ -61,11 +61,11 @@ void aperi_close_config_file(Aperi* aperi);
 void aperi_check_for_wrapper_and_exec(Aperi *aperi);
 
 /* check if there's a configuration rule able to handle the current resource. If so, exec the
- * associated commend appending the aperi argument to the list of arguments*/
+ * associated command appending the aperi argument to the list of arguments*/
 void aperi_launch_associated_app(Aperi* aperi);
 
 /* this function is called when a matching rule was found while parsing the config file.
- * Read the rest of the line and exec the associated commend appending the aperi argument 
+ * Read the rest of the line and exec the associated command appending the aperi argument
  * to the list of arguments */
 void aperi_read_app_and_launch(Aperi *aperi);
 
@@ -160,7 +160,7 @@ void aperi_read_line_to(Aperi* aperi, char sep) {
 int aperi_analyze_arg(Aperi* aperi) {
     aperi->arg_type = ATFile;
 
-    // Check if file exists. If it does, set the dir type when needed, and return'/'
+    // Check if path exists. If it does, set the dir type when needed, and return '/'
     struct stat statbuf;
     if (stat(aperi->file_path, &statbuf) == 0) {
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
