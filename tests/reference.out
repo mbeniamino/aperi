@@ -31,6 +31,9 @@
 ===files/test.h===
 8 test.h foo
 
+===files/test.http===
+.http test.http
+
 ===files/test.i===
 9 %% test.i
 
@@ -50,4 +53,7 @@
 
 ===files/test.wrapper===
 998 test.wrapper
+
+===http://test===
+http:// http://test
 

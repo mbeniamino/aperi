@@ -45,5 +45,9 @@ n=echo "1718"""
 # literal '"' extension
 ""=echo 21
 
+# https://codeberg.org/mbeniamino/aperi/issues/1
+http=echo .http
+http://,https://=echo http://
+
 # catchall
 /*=echo 999
