@@ -204,6 +204,7 @@ int aperi_line_match(Aperi* aperi) {
             } else if (aperi->arg_type == ATDir) {
                 match = strcmp(current_pattern, "/") == 0;
             } else if (aperi->arg_type == ATURI &&
+                       pattern_idx > 3 &&
                        strcmp(current_pattern+pattern_idx-3, "://") == 0) {
                 match = strncmp(aperi->file_path, current_pattern, pattern_idx) == 0;
             } else if (aperi->arg_type == ATFile) {
