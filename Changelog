@@ -1,3 +1,7 @@
+v 0.7.1
+
+- Fixed bug where not URI rules could be applied to URI arguments
+
 v 0.7
 
 - Honor XDG_CONFIG_HOME variable, if present, to find the config directory
