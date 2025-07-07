@@ -191,12 +191,7 @@ int aperi_line_match(Aperi* aperi) {
         }
         if (!aperi->quoting && (ch == ',' || ch == '=')) {
             current_pattern[pattern_idx] = 0;
-            star = strcmp(current_pattern, "*") == 0;
-            if (star) {
-                fprintf(stderr, "aperi: '*' rule is deprecated and will be removed "
-                                "in a future version. Use '/*' instead.\n");
-            }
-            star |= strcmp(current_pattern, "/*") == 0;
+            star = strcmp(current_pattern, "/*") == 0;
 
             int match = 0;
             if (star) {

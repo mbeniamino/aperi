@@ -1,3 +1,6 @@
+v 0.8.0
+- Removed deprecated `*` rule
+
 v 0.7.2
 
 - Add a missing check when handling URI rules
