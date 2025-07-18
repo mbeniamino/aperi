@@ -101,6 +101,7 @@ int strnicmp(const char* s1, const char* s2, size_t n);
 // Implementation
 
 void aperi_init(Aperi* aperi, char* file_path) {
+    aperi->config_f = NULL;
     aperi_init_config_dir_path(aperi);
     // If file_path starts with file://, remove it
     if (strncmp(file_path, "file://", 7) == 0) {
@@ -112,15 +113,14 @@ void aperi_init(Aperi* aperi, char* file_path) {
 
     if (aperi_analyze_arg(aperi) != 0)  {
         fprintf(stderr, "Couldn't stat %s. Exiting.\n", aperi->file_path);
+        aperi_deinit(aperi);
         exit(1);
     }
 }
 
 void aperi_deinit(Aperi* aperi) {
     aperi_close_config_file(aperi);
-    if (aperi->config_dir_path != GLOBAL_CONFIG_DIR) {
-        free(aperi->config_dir_path);
-    }
+    free(aperi->config_dir_path);
 }
 
 void aperi_init_config_dir_path(Aperi* aperi) {
@@ -228,11 +228,15 @@ int aperi_line_match(Aperi* aperi) {
             }
             if (match == 1) {
                 if (ch == ',') aperi_read_line_to(aperi, '=');
+                free(current_pattern);
                 return 1;
             }
 
             // no more rules on this line -> no match
-            if (!aperi->quoting && ch == '=') return 0;
+            if (!aperi->quoting && ch == '=') {
+                free(current_pattern);
+                return 0;
+            }
             pattern_idx = 0;
             match_count = 0;
             current_pattern[0] = 0;
@@ -266,7 +270,7 @@ void aperi_open_config_file(Aperi* aperi) {
 
 void aperi_close_config_file(Aperi* aperi) {
     if(aperi->config_f) fclose(aperi->config_f);
-    aperi->config_f = 0;
+    aperi->config_f = NULL;
 }
 
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
