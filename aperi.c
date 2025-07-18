@@ -12,6 +12,8 @@
 #include "git_version.h"
 #endif
 
+const char* GLOBAL_CONFIG_DIR = "/etc/aperi/";
+
 // Argument types (file, directory or uri)
 typedef enum ArgType { ATFile, ATDir, ATURI } ArgType;
 
@@ -83,6 +85,9 @@ void aperi_normalize_arg(Aperi* aperi, char** argp);
 /* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
 void percent_decode(char* s);
 
+/* return 1 if path is a directory, else 0 */
+int isdir(const char* path);
+
 /* skip to the next non empty line in file `f` */
 int next_line(FILE* f);
 
@@ -113,7 +118,9 @@ void aperi_init(Aperi* aperi, char* file_path) {
 
 void aperi_deinit(Aperi* aperi) {
     aperi_close_config_file(aperi);
-    free(aperi->config_dir_path);
+    if (aperi->config_dir_path != GLOBAL_CONFIG_DIR) {
+        free(aperi->config_dir_path);
+    }
 }
 
 void aperi_init_config_dir_path(Aperi* aperi) {
@@ -129,6 +136,11 @@ void aperi_init_config_dir_path(Aperi* aperi) {
         int ln = snprintf(NULL, 0, "%s%s%s", homedir, config, aperi_path);
         aperi->config_dir_path = malloc(ln+1);
         snprintf(aperi->config_dir_path, ln+1, "%s%s%s", homedir, config, aperi_path);
+    }
+
+    if (!isdir(aperi->config_dir_path)) {
+        free(aperi->config_dir_path);
+        aperi->config_dir_path = strdup(GLOBAL_CONFIG_DIR);
     }
 }
 
@@ -490,6 +502,11 @@ void percent_decode(char* s) {
         ++src;
     }
     *dest = 0;
+}
+
+int isdir(const char* path) {
+    struct stat statbuf;
+    return stat(path, &statbuf) == 0 && (statbuf.st_mode & S_IFMT) == S_IFDIR;
 }
 
 int next_line(FILE* f) {
