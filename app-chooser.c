@@ -31,12 +31,16 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    // open the passed file
+    int has_schema = strstr(argv[1], "://") != NULL;
+
     int fh;
-    fh = open(argv[1], O_RDONLY);
-    if (fh < 0) {
-        fprintf(stderr, "Couldn't open file %s (%s)\n", argv[1], strerror(errno));
-        exit(1);
+    if (!has_schema) {
+        // open the passed file
+        fh = open(argv[1], O_RDONLY);
+        if (fh < 0) {
+            fprintf(stderr, "Couldn't open file %s (%s)\n", argv[1], strerror(errno));
+            exit(1);
+        }
     }
 
     // Create the message for the call
@@ -46,7 +50,7 @@ int main(int argc, char* argv[]) {
     msg = dbus_message_new_method_call("org.freedesktop.portal.Desktop",
                                        "/org/freedesktop/portal/desktop",
                                        "org.freedesktop.portal.OpenURI",
-                                       "OpenFile");
+                                       has_schema ? "OpenURI" : "OpenFile");
     if (!msg) {
         fprintf(stderr, "Error creating D-Bus Message. This application requires the "
                         "org.freedesktop.portal.OpenURI interface.\n");
@@ -61,10 +65,18 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Out Of Memory!\n");
         exit(1);
     }
-    // file handler
-    if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_UNIX_FD, &fh)) {
-        fprintf(stderr, "Out Of Memory!\n");
-        exit(1);
+
+    if (has_schema) {
+        if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &argv[1])) {
+            fprintf(stderr, "Out Of Memory!\n");
+            exit(1);
+        }
+    } else {
+        // file handler
+        if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_UNIX_FD, &fh)) {
+            fprintf(stderr, "Out Of Memory!\n");
+            exit(1);
+        }
     }
 
     // Dictionary of options {string: variant}

@@ -1,5 +1,6 @@
 v 0.10.0
 - Added `aperi_fm1` program to handle org.freedesktop.FileManager1 ShowItems requests
+- `app-chooser`: added support for URI arguments
 
 v 0.9.0
 - Added support for /etc/aperi global config directory
