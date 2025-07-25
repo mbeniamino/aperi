@@ -13,10 +13,12 @@ this utility to all files without a more specific association.
 The program should be invoked with a single argument, which can be a URL or a
 path to open. It then reads its configuration from
 `$XDG_CONFIG_HOME/aperi/config` (usually `$HOME/.config/aperi/config`) and
-launches the associated program, if any. If the program argument starts with
-`file://` this prefix will be automatically stripped and percent decoding of
-the remaining string will be performed. If the argument is a file or a
-directory it will be normalized to an absolute path pointing to the file.
+launches the associated program, if any. A global configuration in
+`/etc/aperi/config` is also supported if the user one is missing.
+If the program argument starts with `file://` this prefix will be automatically
+stripped and percent decoding of the remaining string will be performed. If the
+argument is a file or a directory it will be normalized to an absolute path
+pointing to the file.
 
 The configuration file consists of a sequence of lines. Empty lines or lines
 starting with `#` are ignored. The remaining lines define the executable to use
@@ -94,18 +96,17 @@ level directory use:
 `meson setup --buildtype release build && meson compile -C build`
 
 This will create the `aperi` and, only if dbus development files are available,
-`app-chooser` executables in the new directory `build`.
+`app-chooser` and `aperi_fm1` executables in the new directory `build`.
 
 ### Manual compilation
 
-To manually compile Aperi and app-chooser you can use something like:
+To manually compile `Aperi`, `app-chooser` and `aperi_fm1` you can use something like:
 
 `gcc aperi.c -o aperi`
 
 `gcc app-chooser.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o app-chooser`
 
-Notice that this way of building prevents generated executables to report
-their version.
+`gcc aperi_fm1.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o aperi_fm1`
 
 ## Installation
 
@@ -169,6 +170,42 @@ rules = [
     { name = "*", use = "open" },
 ]
 ```
+
+### org.freedesktop.FileManager1 D-Bus interface
+
+For programs that use the D-Bus interface to open a resource be sure that all
+the relevant environment variables are set. For example, most browsers use the
+`org.freedesktop.FileManager1` to launch a file manager when opening a folder
+from the downloads list. If you need to set the `PATH` to launch `aperi` use a
+command like this (this also set the `LANG` variable even if not strictly
+needed):
+
+`dbus-update-activation-environment --systemd LANG PATH`
+
+Aperi includes `aperi_fm1`, a bare minimal implementation of this D-Bus service
+that just implements the ShowItems service. When invoked, the service expects
+to find `aperi` in the path and will spawn `aperi` passing a URI in the form
+`aperi_show_items://<percent encoded path>`. You can configure `aperi` to handle
+these requests as usual. In the `extra` folder you can find an example
+script (`show_items.py`) that can handle such requests. This script copies the
+item path to the clipboard (already escaped for the shell) and spawn a
+terminal, in this case `alacritty`, in the folder containing the file. It then
+launch a `zsh` shell.
+
+#### Sway
+
+If you are using sway you can add:
+
+`exec dbus-update-activation-environment --systemd LANG PATH`
+
+at the end of the configuration file to export LANG and PATH env variables if
+needed.
+
+You can also add
+
+`exec aperi_fm1`
+
+if you want to handle the ShowItems requests via `aperi`.
 
 ## Author
 

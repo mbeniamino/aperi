@@ -1,4 +1,4 @@
-project('aperi', 'c', version: '0.9.0')
+project('aperi', 'c', version: '0.10.0-pre')
 
 conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
@@ -13,5 +13,9 @@ dbus_dep = dependency('dbus-1', required: get_option('dbus'))
 if dbus_dep.found()
   src_app_chooser = ['app-chooser.c']
   executable('app-chooser', sources: src_app_chooser,
+             dependencies: dbus_dep, install : true)
+
+  src_fm1 = ['aperi_fm1.c']
+  executable('aperi_fm1', sources: src_fm1,
              dependencies: dbus_dep, install : true)
 endif
