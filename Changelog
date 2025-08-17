@@ -1,7 +1,5 @@
-v 0.11.0
-- Added support for specific URIs like https://youtu.be/
-
 v 0.10.0
+- Added support for specific URIs like https://youtu.be/
 - Added `aperi_fm1` program to handle org.freedesktop.FileManager1 ShowItems requests
 - `app-chooser`: added support for URI arguments
 
