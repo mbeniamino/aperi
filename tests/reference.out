@@ -41,7 +41,8 @@
 10 %f test.j
 
 ===files/test.k===
-'12 13'test.k
+test.k 12 13 
+
 ===files/test.l===
 13"14 test.l
 

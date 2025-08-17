@@ -29,7 +29,7 @@ i=echo 9 %%
 j=echo 10 %f
 
 # space in arguments
-k=printf "%q" "12 13"
+k=printf "%q 12 13 \n"
 
 # '"' in arguments
 l=echo "13""14"
