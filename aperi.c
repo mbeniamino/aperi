@@ -210,7 +210,7 @@ int aperi_line_match(Aperi* aperi) {
                 match = strcmp(current_pattern, "/") == 0;
             } else if (aperi->arg_type == ATURI &&
                        pattern_idx > 3 &&
-                       strcmp(current_pattern+pattern_idx-3, "://") == 0) {
+                       strstr(current_pattern, "://")) {
                 match = strncmp(aperi->file_path, current_pattern, pattern_idx) == 0;
             } else if (aperi->arg_type == ATFile) {
                 // file finisce con .<pattern>

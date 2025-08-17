@@ -29,9 +29,12 @@ syntax:
 
 `<rule>` can be:
 
- * a string ending with `://` . This rule matches a url starting with `<rule>`.
+ * a string containing `://` . This rule matches a url starting with `<rule>`.
    For example `http://,https://=firefox` will launch firefox to open urls
-   starting with `http://` or `https://`;
+   starting with `http://` or `https://`, while `https://youtu.be/=mpv` will
+   launch mpv to handle youtube videos (but be aware that the first matching
+   rule will be chosen, so put more specific rules **before** more generic
+   ones);
  * the special string '/'. This rule matches if the argument is a directory;
  * the special string '/\*'. This rule matches any argument;
  * any other string `<string>`. This rule matches a file ending with
