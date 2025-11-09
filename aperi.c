@@ -187,7 +187,6 @@ int aperi_analyze_arg(Aperi* aperi) {
 
 int aperi_line_match(Aperi* aperi) {
     int pattern_idx = 0;
-    int match_count = 0;
     // flag set when '*' is found at the beginning of a match
     int star = 0;
     ssize_t pattern_allocation = 64;
@@ -236,16 +235,12 @@ int aperi_line_match(Aperi* aperi) {
                 return 0;
             }
             pattern_idx = 0;
-            match_count = 0;
             current_pattern[0] = 0;
         } else if (ch == '\n' || ch == '\r' || ch == EOF) {
             /* end of line/file -> exit from loop */
             break;
         } else {
             current_pattern[pattern_idx] = ch;
-            if (pattern_idx < file_path_ln && ch == aperi->file_path[pattern_idx]) {
-                ++match_count;
-            }
             ++pattern_idx;
         }
     }
