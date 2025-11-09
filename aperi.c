@@ -330,14 +330,16 @@ void aperi_launch_associated_app(Aperi* aperi) {
             default:
             {
                 // check if the current line matches the rule
-                int got_match = aperi_line_match(aperi);
-                if (got_match) {
-                    // match: launch the associated program
-                    aperi_read_app_and_launch(aperi);
-                    break;
-                } else {
-                    // no match: skip to next line
-                    aperi_read_line_to(aperi, '\n');
+                {
+                    int got_match = aperi_line_match(aperi);
+                    if (got_match) {
+                        // match: launch the associated program
+                        aperi_read_app_and_launch(aperi);
+                        break;
+                    } else {
+                        // no match: skip to next line
+                        aperi_read_line_to(aperi, '\n');
+                    }
                 }
             }
         }
