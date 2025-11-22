@@ -79,6 +79,11 @@ int aperi_analyze_arg(Aperi* aperi);
 void aperi_normalize_arg(Aperi* aperi, char** argp);
 
 // Utility functions
+/* Like malloc, but print a message and exit in case of errors */
+void *xmalloc(size_t size);
+
+/* Like realloc, but print a message and exit in case of errors */
+void *xrealloc(void* p, size_t size);
 
 /* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
 void percent_decode(char* s);
@@ -126,13 +131,13 @@ void aperi_init_config_dir_path(Aperi* aperi) {
     const char* aperi_path = "/aperi/";
     if (xdg_config_home) {
         int ln = snprintf(NULL, 0, "%s%s", xdg_config_home, aperi_path);
-        aperi->config_dir_path = malloc(ln+1);
+        aperi->config_dir_path = xmalloc(ln+1);
         snprintf(aperi->config_dir_path, ln+1, "%s%s", xdg_config_home, aperi_path);
     } else {
         const char *homedir = get_homedir();
         const char* config = "/.config";
         int ln = snprintf(NULL, 0, "%s%s%s", homedir, config, aperi_path);
-        aperi->config_dir_path = malloc(ln+1);
+        aperi->config_dir_path = xmalloc(ln+1);
         snprintf(aperi->config_dir_path, ln+1, "%s%s%s", homedir, config, aperi_path);
     }
 
@@ -190,13 +195,13 @@ int aperi_line_match(Aperi* aperi) {
     // flag set when '*' is found at the beginning of a match
     int star = 0;
     ssize_t pattern_allocation = 64;
-    char *current_pattern = (char*)malloc(pattern_allocation);
+    char *current_pattern = (char*)xmalloc(pattern_allocation);
     size_t file_path_ln = strlen(aperi->file_path);
     while(1) {
         int ch = aperi_getc(aperi);
         while (pattern_idx + 2 > pattern_allocation) {
             pattern_allocation *= 2;
-            current_pattern = realloc(current_pattern, pattern_allocation);
+            current_pattern = xrealloc(current_pattern, pattern_allocation);
         }
         if (!aperi->quoting && (ch == ',' || ch == '=')) {
             current_pattern[pattern_idx] = 0;
@@ -252,7 +257,7 @@ int aperi_line_match(Aperi* aperi) {
 void aperi_open_config_file(Aperi* aperi) {
     // Open the configuration file from $XDG_CONFIG_HOME/aperi/config
     const char* CONFIG_BASENAME = "config";
-    char* cfgpath = malloc(strlen(aperi->config_dir_path)+strlen(CONFIG_BASENAME)+1);
+    char* cfgpath = xmalloc(strlen(aperi->config_dir_path)+strlen(CONFIG_BASENAME)+1);
     char* ptr = cfgpath;
     ptr = stpcpy(cfgpath, aperi->config_dir_path);
     stpcpy(ptr, CONFIG_BASENAME);
@@ -279,7 +284,7 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     }
 
     int ln = snprintf(NULL, 0, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
-    char* wrapper_path = malloc(ln+strlen(basename)+1);
+    char* wrapper_path = xmalloc(ln+strlen(basename)+1);
     snprintf(wrapper_path, ln+1, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
     char* ptr = &wrapper_path[ln];
     DIR* dir = opendir(wrapper_path);
@@ -357,7 +362,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     // currently allocated space for arguments
     int allocated_args = 10;
     // alloc argv
-    char **argv = (char**)malloc(allocated_args * sizeof(char*));
+    char **argv = (char**)xmalloc(allocated_args * sizeof(char*));
     // used args, at least the url to open and the args terminator ("")
     int used_args = 2;
 
@@ -382,11 +387,11 @@ void aperi_read_app_and_launch(Aperi* aperi) {
                 // allocate a new arg, reallocate argv if needed
                 while(used_args + 1 > allocated_args) {
                     allocated_args *= 2;
-                    argv = (char**)realloc(argv, allocated_args * sizeof(char*));
+                    argv = (char**)xrealloc(argv, allocated_args * sizeof(char*));
                 }
                 allocated_str = 10;
                 ++curr_arg;
-                argv[curr_arg] = (char*)malloc(allocated_str);
+                argv[curr_arg] = (char*)xmalloc(allocated_str);
                 ++used_args;
                 argv[curr_arg][0] = 0;
                 curr_str = -1;
@@ -396,7 +401,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
             // append the character to the current arg
             while(used_str + 1 > allocated_str) {
                 allocated_str *= 2;
-                argv[curr_arg] = (char*)realloc(argv[curr_arg], allocated_str);
+                argv[curr_arg] = (char*)xrealloc(argv[curr_arg], allocated_str);
             }
             argv[curr_arg][++curr_str] = ch;
             argv[curr_arg][curr_str+1] = 0;
@@ -408,7 +413,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     if(!handle_placeholders) {
         if (aperi->arg_type == ATURI) {
             int pathlen = strlen(aperi->file_path);
-            argv[used_args-2] = malloc(pathlen+1);
+            argv[used_args-2] = xmalloc(pathlen+1);
             strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
         } else {
             argv[used_args-2] = realpath(aperi->file_path, NULL);
@@ -449,7 +454,7 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
                         int len_rp = strlen(rp);
                         int original_sz = strlen(*argp)+1;
                         int offset_dest = dest - *argp;
-                        new_dest = malloc(original_sz-2+len_rp);
+                        new_dest = xmalloc(original_sz-2+len_rp);
                         strcpy(new_dest, *argp);
                         dest = new_dest + offset_dest;
                         strcpy(dest, rp);
@@ -471,6 +476,26 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
     *dest = 0;
     if (new_dest) *argp = new_dest;
     return;
+}
+
+void *xmalloc(size_t size) {
+    void* p = malloc(size);
+    if(!p) {
+        perror("Error allocating memory");
+        fprintf(stderr, "Aborting...\n");
+        exit(1);
+    }
+    return p;
+}
+
+void *xrealloc(void* p, size_t size) {
+    void* new_p = realloc(p, size);
+    if(!new_p) {
+        perror("Error reallocating memory");
+        fprintf(stderr, "Aborting...\n");
+        exit(1);
+    }
+    return new_p;
 }
 
 void percent_decode(char* s) {
