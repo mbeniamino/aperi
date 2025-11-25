@@ -450,16 +450,18 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
             if (unescape) {
                 switch(*arg) {
                     case 'f':
-                        char* rp = realpath(aperi->file_path, NULL);
-                        int len_rp = strlen(rp);
-                        int original_sz = strlen(*argp)+1;
-                        int offset_dest = dest - *argp;
-                        new_dest = xmalloc(original_sz-2+len_rp);
-                        strcpy(new_dest, *argp);
-                        dest = new_dest + offset_dest;
-                        strcpy(dest, rp);
-                        free(rp);
-                        dest += len_rp;
+                        {
+                            char* rp = realpath(aperi->file_path, NULL);
+                            int len_rp = strlen(rp);
+                            int original_sz = strlen(*argp)+1;
+                            int offset_dest = dest - *argp;
+                            new_dest = xmalloc(original_sz-2+len_rp);
+                            strcpy(new_dest, *argp);
+                            dest = new_dest + offset_dest;
+                            strcpy(dest, rp);
+                            free(rp);
+                            dest += len_rp;
+                        }
                         break;
                     case '%':
                         *dest = *arg;
