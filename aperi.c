@@ -85,6 +85,9 @@ void *xmalloc(size_t size);
 /* Like realloc, but print a message and exit in case of errors */
 void *xrealloc(void* p, size_t size);
 
+/* Like realpath, but print a message and exit in case of errors */
+char *xrealpath(const char *path, char *resolved_path);
+
 /* Percent decode `s` (see https://en.wikipedia.org/wiki/Percent-encoding) */
 void percent_decode(char* s);
 
@@ -299,7 +302,7 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
             char* argv[3];
             strcpy(ptr, c+1);
             argv[0] = wrapper_path;
-            argv[1] = realpath(aperi->file_path, NULL);
+            argv[1] = xrealpath(aperi->file_path, NULL);
             argv[2] = NULL;
             execvp(argv[0], argv);
             if (errno != ENOENT) {
@@ -416,7 +419,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
             argv[used_args-2] = xmalloc(pathlen+1);
             strncpy(argv[used_args-2], aperi->file_path, pathlen+1);
         } else {
-            argv[used_args-2] = realpath(aperi->file_path, NULL);
+            argv[used_args-2] = xrealpath(aperi->file_path, NULL);
         }
     } else {
         argv[used_args-2] = NULL;
@@ -451,7 +454,11 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
                 switch(*arg) {
                     case 'f':
                         {
-                            char* rp = realpath(aperi->file_path, NULL);
+                            char* rp = xrealpath(aperi->file_path, NULL);
+                            if(!rp) {
+                                perror("Error expanding real path");
+                                exit(1);
+                            }
                             int len_rp = strlen(rp);
                             int original_sz = strlen(*argp)+1;
                             int offset_dest = dest - *argp;
@@ -498,6 +505,14 @@ void *xrealloc(void* p, size_t size) {
         exit(1);
     }
     return new_p;
+}
+
+char *xrealpath(const char *path, char *resolved_path) {
+    char *res = realpath(path, resolved_path);
+    if(!res) {
+        perror("Error in realpath");
+    }
+    return res;
 }
 
 void percent_decode(char* s) {
