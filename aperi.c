@@ -483,6 +483,7 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
                     case '%':
                         *dest = *arg;
                         ++dest;
+                        break;
                 }
                 unescape = 0;
             } else {
