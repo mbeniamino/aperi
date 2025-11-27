@@ -588,7 +588,7 @@ int strnicmp(const char* s1, const char* s2, size_t n) {
         unsigned char c1 = tolower((unsigned char)s1[i]);
         unsigned char c2 = tolower((unsigned char)s2[i]);
         if(c1 != c2) {
-            return s1[i] < s2[i] ? -1 : 1;
+            return c1 < c2 ? -1 : 1;
         }
         if (c1 == 0) break;
     }
