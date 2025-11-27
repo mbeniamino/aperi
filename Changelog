@@ -1,3 +1,7 @@
+v 0.10.1
+- Fixed a bug when multiple %f were present in a single argument
+- Minor fixes
+
 v 0.10.0
 - Added support for specific URIs like https://youtu.be/
 - Added `aperi_fm1` program to handle org.freedesktop.FileManager1 ShowItems requests
