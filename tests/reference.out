@@ -52,6 +52,9 @@ test.k 12 13
 ===files/test.n===
 1718" test.n
 
+===files/test.o===
+22 testtest.o-test.otest
+
 ===files/test.wrapper===
 998 test.wrapper
 

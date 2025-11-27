@@ -52,5 +52,8 @@ http://youtu.be/=echo http://youtu.be/
 http=echo .http
 http://,https://=echo http://
 
+# Double placeholder
+o=%echo 22 test%f-%ftest
+
 # catchall
 /*=echo 999

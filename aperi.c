@@ -445,7 +445,10 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
 
     int unescape = 0;
     char* dest = arg;
-    char* new_dest = 0;
+    char* new_arg = 0;
+    int first_f = true;
+    int extra_size = 0;
+    char* rp = 0;
     while(*arg) {
         if (*arg == '%' && !unescape) {
             unescape = 1;
@@ -454,20 +457,27 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
                 switch(*arg) {
                     case 'f':
                         {
-                            char* rp = xrealpath(aperi->file_path, NULL);
-                            if(!rp) {
-                                perror("Error expanding real path");
-                                exit(1);
+                            int original_sz = strlen(*argp)+1;
+                            if (first_f) {
+                                new_arg = xmalloc(original_sz);
+                                strcpy(new_arg, *argp);
+                                int offset_dest = dest - *argp;
+                                dest = new_arg + offset_dest;
+                                rp = xrealpath(aperi->file_path, NULL);
+                                if(!rp) {
+                                    perror("Error expanding real path");
+                                    exit(1);
+                                }
                             }
                             int len_rp = strlen(rp);
-                            int original_sz = strlen(*argp)+1;
-                            int offset_dest = dest - *argp;
-                            new_dest = xmalloc(original_sz-2+len_rp);
-                            strcpy(new_dest, *argp);
-                            dest = new_dest + offset_dest;
+                            // minus len of "%f" plus len of the real path
+                            extra_size += len_rp - 2;
+                            int offset_dest = dest - new_arg;
+                            new_arg = xrealloc(new_arg, original_sz+extra_size);
+                            dest = new_arg + offset_dest;
                             strcpy(dest, rp);
-                            free(rp);
                             dest += len_rp;
+                            first_f = false;
                         }
                         break;
                     case '%':
@@ -483,7 +493,8 @@ void aperi_normalize_arg(Aperi* aperi, char** argp) {
         ++arg;
     }
     *dest = 0;
-    if (new_dest) *argp = new_dest;
+    if (new_arg) *argp = new_arg;
+    free(rp);
     return;
 }
 
