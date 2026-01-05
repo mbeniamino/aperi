@@ -210,6 +210,67 @@ You can also add
 
 if you want to handle the ShowItems requests via `aperi`.
 
+## Troubleshooting
+
+### Wine takes over as the default application
+
+#### Remove wine file associations
+
+By default Wine will associate some common file formats, such as txt and jpeg,
+with wine clones of windows programs such as notepad and internet explorer. In
+order to remove the current associations delete the related desktop files in
+the user home:
+
+```
+rm -f ~/.local/share/applications/wine-extension*.desktop
+rm -f ~/.local/share/icons/hicolor/*/*/application-x-wine-extension*
+```
+
+remove the old mime type cache:
+
+```
+rm -f ~/.local/share/applications/mimeinfo.cache
+rm -f ~/.local/share/mime/packages/x-wine*
+rm -f ~/.local/share/mime/application/x-wine-extension*
+```
+
+and rebuild it:
+
+```
+update-desktop-database ~/.local/share/applications
+update-mime-database ~/.local/share/mime/
+```
+
+#### Prevent wine from creating file associations again
+
+To prevent wine from creating the file associations again you can disable this
+behaviour **per prefix**. Substitute `<prefix>` with the path of the wine
+prefix and run:
+
+```
+WINEPREFIX=<prefix> wine reg add "HKEY_CURRENT_USER\Software\Wine\FileOpenAssociations" /v Enable /d N
+```
+
+In order to disable this in newly created prefixes you could edit
+`wine.inf` often installed in `/usr/share/wine` and add the line
+
+```
+HKCU,"Software\Wine\FileOpenAssociations","Enable",2,"N"
+```
+
+under the `[Services]` section.
+
+Depending on your distro and wine installation method, modifying this file
+could change a package installed file. This can lead to warnings or problems
+during system updates or to this file being overwritten.
+Check your distro documentation for specific fixes, such as creating post
+install hooks.
+
+For ArchLinux check the [article of the
+Wiki](https://wiki.archlinux.org/title/Wine) , and in particular the paragraphs
+"Unregister existing Wine file associations" and "Prevent Wine from creating
+filetype associations".
+
 ## Author
 
 Aperi was written by Matteo Beniamino (m.beniamino@tautologica.org).
