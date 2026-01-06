@@ -277,14 +277,8 @@ void aperi_close_config_file(Aperi* aperi) {
 void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
     if (aperi->arg_type != ATFile) return;
     const char* WRAPPERS_DIR = "wrappers/";
-    char* basename = &aperi->file_path[strlen(aperi->file_path)];
-    while(basename != aperi->file_path) {
-        if (*basename == '/') {
-            basename++;
-            break;
-        }
-        --basename;
-    }
+    char* basename = strrchr(aperi->file_path, '/');
+    if (!basename) basename = aperi->file_path;
 
     int ln = snprintf(NULL, 0, "%s%s", aperi->config_dir_path, WRAPPERS_DIR);
     char* wrapper_path = xmalloc(ln+strlen(basename)+1);

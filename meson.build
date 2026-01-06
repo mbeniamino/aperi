@@ -19,3 +19,7 @@ if dbus_dep.found()
   executable('aperi_fm1', sources: src_fm1,
              dependencies: dbus_dep, install : true)
 endif
+
+src_wipewine = ['wipewine.c']
+executable('wipewine', sources: src_wipewine,
+           install : true)

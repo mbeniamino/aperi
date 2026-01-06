@@ -271,6 +271,13 @@ Wiki](https://wiki.archlinux.org/title/Wine) , and in particular the paragraphs
 "Unregister existing Wine file associations" and "Prevent Wine from creating
 filetype associations".
 
+#### Systemd service to wipe wine file associations
+
+Aperi comes with an optional systemd service that remove the .desktop files wine
+creates as soon as they are created. The executable is called wipewine and a sample
+unit is present in the extra/ directory. Check the executable path in the sample unit,
+and change it if needed. Install/enable/start the unit as a user service.
+
 ## Author
 
 Aperi was written by Matteo Beniamino (m.beniamino@tautologica.org).
