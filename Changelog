@@ -1,3 +1,6 @@
+v 0.11
+- Added service to remove wine file associations as soon as they are created
+
 v 0.10.1
 - Fixed a bug when multiple %f were present in a single argument
 - Minor fixes

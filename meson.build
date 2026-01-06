@@ -1,4 +1,4 @@
-project('aperi', 'c', version: '0.10.1')
+project('aperi', 'c', version: '0.11.0-pre')
 
 conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
