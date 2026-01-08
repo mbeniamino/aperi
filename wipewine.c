@@ -129,17 +129,12 @@ char* stpecpy(char *dst, char* end, const char *restrict src) {
 
 /* Other functions */
 
-// Print errno in human readable form and exit with an error code
-void perror_exit(const char* s) {
-    perror(s);
-    exit(EXIT_FAILURE);
-}
-
 /* Path to $XDG_DATA_HOME/applications. If $XDG_DATA_HOME is not set, use
    $HOME/.local/share instead. If $HOME is not set use /home/<userid> . */
 char* xdg_applications() {
     const size_t BUFSIZE=2048;
     char* res = (char*)malloc(BUFSIZE);
+    res[0] = 0;
     char* end = res + BUFSIZE;
     char* xdg_data_home = getenv("XDG_DATA_HOME");
     char* p;
@@ -153,7 +148,9 @@ char* xdg_applications() {
             // HOME not set: use /home/<userid>
             p = strncpy(res, "/home/", BUFSIZE) + 6;
             if (!getlogin_r(p, BUFSIZE - 6)) {
-                perror_exit("getlogin_r");
+                perror("getlogin_r");
+                free(res);
+                return 0;
             }
             p = res + strlen(res);
         } else {
@@ -171,56 +168,66 @@ char* xdg_applications() {
 int main(int argc, char *argv[]) {
     char buf[BUF_LEN] __attribute__ ((aligned(8)));
     ssize_t numRead;
+    int retcode = EXIT_FAILURE;
 
     /* Setup signal handler */
     struct sigaction sa = {
         .sa_handler = signal_handler,
-        .sa_flags = SA_RESTART,
+        .sa_flags = 0,
     };
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 
     // Initialize inotify
-    int inotify_fd = inotify_init();
-    if (inotify_fd == -1) perror_exit("inotify_init");
-
     // Add watch on creation of files in $XDG_DATA_HOME/applications dir
+    int inotify_fd = -1;
+    int wd = -1;
     char* xdg_data_home_path = xdg_applications();
-    int wd = inotify_add_watch(inotify_fd, xdg_data_home_path, IN_CREATE);
-    if (wd == -1) perror_exit("inotify_add_watch");
+    if (!xdg_data_home_path) {
+        goto exit;
+    }
+
+    inotify_fd = inotify_init();
+    if (inotify_fd == -1) {
+        perror("inotify_init");
+        goto exit;
+    }
+
+    wd = inotify_add_watch(inotify_fd, xdg_data_home_path, IN_CREATE);
+    if (wd == -1) {
+        perror("inotify_add_watch");
+        goto exit;
+    }
 
     /* change dir to xdg_applications so that we can later call unlink on the event->name
      * directly, without the need to allocate and concatenate c strings */
-    if (chdir(xdg_data_home_path)) perror_exit("cd");
+    if (chdir(xdg_data_home_path)) {
+        perror("cd");
+        goto exit;
+    }
 
     // Notify systemd we are ready
     int r = notify_ready();
     if (r < 0) {
         fprintf(stderr, "Failed to notify readiness to $NOTIFY_SOCKET: %s\n", strerror(-r));
-        return EXIT_FAILURE;
+        goto exit;
     }
 
-    fd_set set;
     char *p;
     while (!terminating) {
         /* wait for inotify event or a signal */
-        FD_ZERO(&set);
-        FD_SET(inotify_fd, &set);
-        int ret = pselect(inotify_fd + 1, &set, NULL, NULL, NULL, NULL);
+        numRead = read(inotify_fd, buf, BUF_LEN);
 
-        if (ret == -1 && errno == EINTR) {
+        if (numRead == -1 && errno == EINTR) {
             // Signal: do nothing, let the signal handler do its job
-        } else if (ret == -1) {
-            perror_exit("pselect");
+        } else if (numRead == -1) {
+            perror("read");
+            goto exit;
+        } else if (numRead == 0) {
+            fprintf(stderr, "0 bytes read from inotify_fd\n");
+            goto exit;
         } else {
-            numRead = read(inotify_fd, buf, BUF_LEN);
-            if (numRead == 0) {
-                fprintf(stderr, "read() from inotify fd returned 0!\n");
-                exit(EXIT_FAILURE);
-            }
-            if (numRead == -1) perror_exit("read");
-
             /* Process all of the events in buffer returned by read() */
             for (p = buf; p < buf + numRead; ) {
                 struct inotify_event *event = (struct inotify_event *)p;
@@ -246,12 +253,16 @@ int main(int argc, char *argv[]) {
     r = notify_stopping();
     if (r < 0) {
         fprintf(stderr, "Failed to report termination to $NOTIFY_SOCKET: %s\n", strerror(-r));
-        return EXIT_FAILURE;
+        goto exit;
     }
 
+    retcode = EXIT_SUCCESS;
+exit:
     // Final clean up and exit
-    inotify_rm_watch(inotify_fd, wd);
-    close(inotify_fd);
+    if (inotify_fd != -1) {
+        if (wd != -1) inotify_rm_watch(inotify_fd, wd);
+        close(inotify_fd);
+    }
     free(xdg_data_home_path);
-    return EXIT_SUCCESS;
+    return retcode;
 }
