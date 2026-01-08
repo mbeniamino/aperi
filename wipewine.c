@@ -227,7 +227,8 @@ int main(int argc, char *argv[]) {
 
                 p += sizeof(struct inotify_event) + event->len;
                 // if the file matches wine-extension*.desktop: unlink it at once
-                if (strncmp("wine-extension", event->name, 14) == 0 &&
+                if ((strncmp("wine-extension", event->name, 14) == 0 ||
+                     strncmp("wine-protocol", event->name, 13) == 0) &&
                     strncmp(".desktop", event->name + strlen(event->name) - 8, 8) == 0) {
                     if (unlink(event->name)) {
                         fprintf(stderr, "Error unlinking %s: ", event->name);
