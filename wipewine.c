@@ -1,4 +1,5 @@
 #define _GNU_SOURCE 1
+#include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -163,6 +164,34 @@ char* xdg_applications() {
     return res;
 }
 
+// Return if the filename `name` matches a wine association desktop file
+int is_wine_desktop_file(const char* name) {
+    return (strncmp("wine-extension", name, 14) == 0 ||
+            strncmp("wine-protocol", name, 13) == 0) &&
+           strncmp(".desktop", name + strlen(name) - 8, 8) == 0;
+}
+
+// Remove all the wine association desktop files from the current directory
+int rm_associations() {
+    struct dirent *dp;
+    DIR *dfd;
+
+    if ((dfd = opendir(".")) == NULL) return 1;
+    while ((dp = readdir(dfd)) != NULL) {
+        if (is_wine_desktop_file(dp->d_name)) {
+            printf("Unlinking %s\n", dp->d_name);
+            if (unlink(dp->d_name)) {
+                fprintf(stderr, "Error unlinking %s: ", dp->d_name);
+                perror("");
+            } else {
+                printf("Unlinked %s\n", dp->d_name);
+            }
+        }
+    }
+    closedir(dfd);
+    return 0;
+}
+
 /* Main */
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
 int main(int argc, char *argv[]) {
@@ -215,6 +244,7 @@ int main(int argc, char *argv[]) {
     }
 
     char *p;
+    rm_associations();
     while (!terminating) {
         /* wait for inotify event or a signal */
         numRead = read(inotify_fd, buf, BUF_LEN);
@@ -234,9 +264,7 @@ int main(int argc, char *argv[]) {
 
                 p += sizeof(struct inotify_event) + event->len;
                 // if the file matches wine-extension*.desktop: unlink it at once
-                if ((strncmp("wine-extension", event->name, 14) == 0 ||
-                     strncmp("wine-protocol", event->name, 13) == 0) &&
-                    strncmp(".desktop", event->name + strlen(event->name) - 8, 8) == 0) {
+                if (is_wine_desktop_file(event->name)) {
                     if (unlink(event->name)) {
                         fprintf(stderr, "Error unlinking %s: ", event->name);
                         perror("");
