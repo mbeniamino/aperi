@@ -165,12 +165,12 @@ Set this parameters in your `yazi.toml` config file:
 ```
 [opener]
 open = [
-    { run = 'xdg-open "$@"', desc = "Open" },
+    { run = "xdg-open %s", desc = "Open" },
 ]
 
 [open]
 rules = [
-    { name = "*", use = "open" },
+    { url = "*", use = "open" },
 ]
 ```
 
