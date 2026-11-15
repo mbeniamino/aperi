@@ -1,0 +1,6 @@
+aperi (0.11.0~pre-1) unstable; urgency=medium
+
+  * aperi-session replaces aperi_fm1 and wipewine.
+  * Added aperi-setup, man pages and Debian packaging.
+
+ -- Matteo Beniamino <m.beniamino@tautologica.org>  Sun, 15 Nov 2026 10:00:00 +0100

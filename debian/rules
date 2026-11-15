@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+# The unit directory is passed explicitly, so that systemd.pc (systemd-dev)
+# is not needed at build time
+override_dh_auto_configure:
+	dh_auto_configure -- -Ddbus=enabled \
+		-Dsystemduserunitdir=/usr/lib/systemd/user
+
+# aperi-session is opt-in (systemctl --user enable, or aperi-setup): don't
+# enable the user unit globally for all users
+override_dh_installsystemduser:
+
+# aperi-setup reads the example files: keep them uncompressed
+override_dh_compress:
+	dh_compress -Xexamples/

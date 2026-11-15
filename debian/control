@@ -1,0 +1,30 @@
+Source: aperi
+Section: utils
+Priority: optional
+Maintainer: Matteo Beniamino <m.beniamino@tautologica.org>
+Build-Depends: debhelper-compat (= 13),
+               libdbus-1-dev,
+               meson,
+               pkgconf,
+Standards-Version: 4.7.0
+Homepage: https://codeberg.org/mbeniamino/aperi
+Rules-Requires-Root: no
+
+Package: aperi
+Architecture: any
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Recommends: xdg-desktop-portal,
+Suggests: python3,
+          wl-clipboard,
+Description: simple resource opener based on file extensions and URI schemas
+ aperi opens a file, directory or URI with the program associated to its
+ extension, URI schema or type by a simple configuration file. It can be
+ used in place of xdg-open and as the default application of the desktop.
+ .
+ The package also contains:
+  * app-chooser, to open a file with the desktop application chooser;
+  * aperi-session, a session helper providing a minimal
+    org.freedesktop.FileManager1 D-Bus service and removing the file
+    associations created by wine;
+  * aperi-setup, to configure a user account to use aperi.

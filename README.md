@@ -134,8 +134,41 @@ with the `/usr` prefix): it is used only by users who don't have a
 
 ### System wide
 
+Packages can be built from the source tree for these distributions; the
+built package contains the files of the source tree, including uncommitted
+changes for Arch Linux and Debian, and the files of the last commit for RPM.
+
 On Arch Linux, a `PKGBUILD` is in the top level directory: from there run
 `makepkg -si`.
+
+On Debian, Ubuntu and derivatives, the `debian` directory contains the
+packaging. Install the build dependencies and build the package from the
+top level directory; the `.deb` is created in the parent directory:
+
+```
+sudo apt install build-essential debhelper libdbus-1-dev meson pkgconf
+dpkg-buildpackage -us -uc -b
+sudo apt install ../aperi_*.deb
+```
+
+On Fedora, openSUSE and other RPM based distributions, use `aperi.spec`
+(`dnf builddep` is part of `dnf-plugins-core`):
+
+```
+sudo dnf install rpm-build dnf-plugins-core
+sudo dnf builddep aperi.spec
+mkdir -p ~/rpmbuild/SOURCES
+version=$(rpmspec -q --qf '%{version}\n' aperi.spec | head -1)
+git archive --prefix="aperi-$version/" -o ~/rpmbuild/SOURCES/"aperi-$version.tar.gz" HEAD
+rpmbuild -bb aperi.spec
+sudo dnf install ~/rpmbuild/RPMS/*/aperi-"$version"-*.rpm
+```
+
+When the version changes, update it in `meson.build`, `debian/changelog`
+(e.g. with `dch -v`) and `aperi.spec` (`Version` and `%changelog`).
+
+These packages don't enable `aperi-session` for any user: see [Setting up a
+user account](#setting-up-a-user-account).
 
 On other distributions:
 
