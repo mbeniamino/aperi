@@ -202,8 +202,9 @@ copy them where needed, and fix the `ExecStart` path in the unit.
 ## Setting up a user account
 
 The `aperi-setup` script, installed with aperi, performs the steps below
-interactively: it asks before each step, backs up the files it replaces and
-never overwrites the aperi configuration. Run `aperi-setup --help` for the
+interactively: it asks before each step, backs up the files it replaces,
+never overwrites the aperi configuration and logs all its changes in
+`~/.local/state/aperi/setup.log` (`$XDG_STATE_HOME/aperi/setup.log`). Run `aperi-setup --help` for the
 options, e.g. `--yes` to use the default answers without asking, `--skip
 STEP`/`--only STEP` to choose the steps and `--examples DIR` to use the
 example files of the source tree (`extra`) when aperi is not installed. You

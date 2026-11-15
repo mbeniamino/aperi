@@ -10,6 +10,7 @@ CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 BIN_HOME=$HOME/.local/bin
 APERI_CONFIG=$CONFIG_HOME/aperi/config
+LOG_FILE=${XDG_STATE_HOME:-$HOME/.local/state}/aperi/setup.log
 STEPS='config mimeapps xdg-open session show-items'
 
 usage() {
@@ -36,7 +37,8 @@ Options:
   -h, --help            show this help and exit
   -V, --version         show version and exit
 
-Replaced files are backed up as FILE.bak-<timestamp>.
+Replaced files are backed up as FILE.bak-<timestamp>. All the changes are
+logged in $LOG_FILE.
 EOF
 }
 
@@ -47,7 +49,37 @@ EOF
 info() { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
-die() { printf 'aperi-setup: %s\n' "$*" >&2; exit 1; }
+die() {
+    printf 'aperi-setup: %s\n' "$*" >&2
+    log "error: $*"
+    log "=== failed"
+    exit 1
+}
+
+# log MESSAGE: append a timestamped line to the log, once it is opened
+log() {
+    [ "$LOG" ] || return 0
+    if ! printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" 2>/dev/null >> "$LOG"; then
+        warn "cannot write the log $LOG"
+        LOG=
+    fi
+}
+
+# change MESSAGE: log a change made to the account
+change() {
+    CHANGES=$((CHANGES + 1))
+    log "$*"
+}
+
+open_log() {
+    # in a subshell: a failed redirection of a special builtin exits the shell
+    if mkdir -p "${LOG_FILE%/*}" 2>/dev/null && (: >> "$LOG_FILE") 2>/dev/null; then
+        LOG=$LOG_FILE
+    else
+        warn "cannot write the log $LOG_FILE: changes won't be logged"
+    fi
+    log "=== aperi-setup $VERSION started${ARGS:+ with options: $ARGS}"
+}
 
 # ask QUESTION DEFAULT(y|n): returns 0 for yes
 ask() {
@@ -58,7 +90,7 @@ ask() {
     if [ "$2" = y ]; then hint='[Y/n]'; else hint='[y/N]'; fi
     while :; do
         printf '%s %s ' "$1" "$hint"
-        read -r answer || die "unexpected end of input"
+        read -r answer || die "no answer: input closed or interrupted"
         case $answer in
             '') [ "$2" = y ]; return ;;
             [yY]*) return 0 ;;
@@ -84,7 +116,7 @@ choose() {
     done
     while :; do
         printf 'Choice [%s]: ' "$default"
-        read -r choice || die "unexpected end of input"
+        read -r choice || die "no answer: input closed or interrupted"
         [ -z "$choice" ] && choice=$default
         for opt; do
             [ "$choice" = "${opt%%:*}" ] && return
@@ -95,7 +127,15 @@ choose() {
 backup() {
     bak="$1.bak-$(date +%Y%m%d%H%M%S)"
     mv -- "$1" "$bak" || die "cannot back up $1"
+    change "backed up $1 to $bak (moved)"
     info "Backed up $1 to $bak"
+}
+
+# backup_copy FILE: back up FILE leaving it in place
+backup_copy() {
+    bak="$1.bak-$(date +%Y%m%d%H%M%S)"
+    cp -p -- "$1" "$bak" || die "cannot back up $1"
+    change "backed up $1 to $bak (copied)"
 }
 
 enabled() {
@@ -127,6 +167,7 @@ do_config() {
     src=$(example config) || exit 1
     ask "Create it from the example configuration?" y || return
     mkdir -p "${APERI_CONFIG%/*}" && cp -- "$src" "$APERI_CONFIG" || die "cannot create $APERI_CONFIG"
+    change "created $APERI_CONFIG from $src"
     CREATED_CONFIG=1
     info "Created $APERI_CONFIG: edit its rules to use your programs."
 }
@@ -195,13 +236,19 @@ do_mimeapps() {
             "s:skip"
         case $choice in
             s) return ;;
-            r) backup "$target" && cp -- "$src" "$target" || die "cannot write $target" ;;
+            r)
+                backup "$target"
+                cp -- "$src" "$target" || die "cannot write $target"
+                change "replaced $target with $src"
+                ;;
             *)
                 [ "$choice" = k ] && mode=keep || mode=aperi
                 tmp=$(mktemp "$target.XXXXXX") || die "cannot create a temporary file"
                 if merge_mimeapps "$mode" "$src" "$target" > "$tmp"; then
-                    cp -p -- "$target" "$target.bak-$(date +%Y%m%d%H%M%S)" &&
-                        mv -- "$tmp" "$target" || { rm -f "$tmp"; die "cannot write $target"; }
+                    backup_copy "$target"
+                    mv -- "$tmp" "$target" || { rm -f "$tmp"; die "cannot write $target"; }
+                    change "merged $src into $target ($([ $mode = keep ] &&
+                        echo existing defaults kept || echo aperi defaults))"
                     info "Merged into $target (previous version backed up)."
                 else
                     rm -f "$tmp"
@@ -212,6 +259,7 @@ do_mimeapps() {
     else
         ask "Associate the common MIME types with aperi?" y || return
         mkdir -p "$CONFIG_HOME" && cp -- "$src" "$target" || die "cannot write $target"
+        change "created $target from $src"
         info "Created $target."
     fi
 
@@ -227,6 +275,7 @@ do_mimeapps() {
         ask "Link the deprecated location $old to $target?" y || return
     fi
     mkdir -p "${old%/*}" && ln -s -- "$target" "$old" || die "cannot create $old"
+    change "linked $old -> $target"
     info "Linked $old."
 }
 
@@ -242,9 +291,11 @@ do_xdg_open() {
         ask "Back it up and replace it with a link to aperi?" n || return
         backup "$link"
         ln -s -- "$APERI_BIN" "$link" || die "cannot create $link"
+        change "linked $link -> $APERI_BIN"
     else
         ask "Use aperi in place of xdg-open (link $link)?" y || return
         mkdir -p "$BIN_HOME" && ln -s -- "$APERI_BIN" "$link" || die "cannot create $link"
+        change "linked $link -> $APERI_BIN"
         info "Linked $link."
     fi
     found=$(command -v xdg-open)
@@ -274,8 +325,10 @@ do_session() {
             have_systemd || die "systemd user manager or aperi-session.service not available"
             systemctl --user daemon-reload &&
                 systemctl --user enable aperi-session.service || die "cannot enable aperi-session.service"
+            change "enabled aperi-session.service (systemctl --user enable)"
             if systemctl --user -q is-active graphical-session.target; then
                 systemctl --user start aperi-session.service &&
+                    change "started aperi-session.service" &&
                     info "aperi-session.service enabled and started."
             else
                 info "aperi-session.service enabled: it will start with the next graphical session."
@@ -283,6 +336,7 @@ do_session() {
             fi
             ;;
         compositor)
+            log "session: compositor chosen, instructions printed (nothing changed)"
             info "Add to the startup commands of your compositor, e.g. for sway"
             info "(${XDG_CONFIG_HOME:-~/.config}/sway/config):"
             info ""
@@ -304,6 +358,7 @@ do_show_items() {
         ask "Install the example show_items.py?" y || return
         mkdir -p "$BIN_HOME" && cp -- "$src" "$script" && chmod 755 "$script" ||
             die "cannot install $script"
+        change "installed $script from $src"
         info "Installed $script: adapt the terminal and shell it launches."
     fi
     for dep in python3 wl-copy alacritty zsh; do
@@ -327,6 +382,7 @@ do_show_items() {
             awk -v rule="$rule" '!done && /^aperi-show-items:\/\//{print rule; done=1; next} 1' \
                 "$APERI_CONFIG" > "$tmp" && mv -- "$tmp" "$APERI_CONFIG" ||
             die "cannot update $APERI_CONFIG"
+        change "changed the rule aperi-show-items://=show_items.py to $rule in $APERI_CONFIG"
         info "Set the ShowItems rule to $rule"
     elif [ "$existing" ]; then
         info "$APERI_CONFIG already has a ShowItems rule: $existing"
@@ -340,6 +396,7 @@ do_show_items() {
                 END { if (!done) print rule }
             ' "$APERI_CONFIG" > "$tmp" && mv -- "$tmp" "$APERI_CONFIG" ||
             die "cannot update $APERI_CONFIG"
+        change "added the rule $rule to $APERI_CONFIG"
         info "Added the rule to $APERI_CONFIG."
     fi
 }
@@ -348,7 +405,8 @@ do_show_items() {
 # Main
 # ---------------------------------------------------------------------------
 
-YES= SKIP= ONLY= SESSION= CREATED_CONFIG=
+YES= SKIP= ONLY= SESSION= CREATED_CONFIG= LOG= CHANGES=0
+ARGS=$*
 while [ $# -gt 0 ]; do
     case $1 in
         -y|--yes) YES=1 ;;
@@ -371,10 +429,21 @@ if [ -z "$YES" ] && [ ! -t 0 ]; then
 fi
 [ -x "$APERI_BIN" ] || warn "$APERI_BIN not found: is aperi installed?"
 
+open_log
+trap 'trap - INT TERM HUP; log "=== interrupted"; exit 130' INT TERM HUP
+
 enabled config && do_config
 enabled mimeapps && do_mimeapps
 enabled xdg-open && do_xdg_open
 enabled session && do_session
 enabled show-items && do_show_items
+log "=== finished: $CHANGES change(s)"
 step "Done"
+if [ "$CHANGES" -eq 0 ]; then
+    info "Nothing changed."
+elif [ "$LOG" ]; then
+    info "$CHANGES change(s) logged in $LOG"
+else
+    info "$CHANGES change(s), not logged"
+fi
 exit 0

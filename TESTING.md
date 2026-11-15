@@ -23,7 +23,9 @@ There are no automated tests for `aperi-session`, `aperi-setup` and
 - `aperi-setup`: fresh `--yes` run and rerun with a fake `HOME`, the three
   interactive mimeapps merge choices (through `script`), rule insertion
   before the catch all rule, existing user `xdg-open`, invalid options;
-  syntax with `bash --posix`.
+  syntax with `bash --posix`. The change log: entries for each change and
+  backup, rerun without changes, errors, unwritable log (setup goes on),
+  `XDG_STATE_HOME`, interrupt at a prompt (one entry).
 - `aperi`: exit status 1 when a launch fails with no other matching rule
   (manually, since the test config ends with a catch all rule).
 - Arch package: built with `makepkg`, contents inspected.

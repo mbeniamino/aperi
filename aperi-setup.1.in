@@ -20,6 +20,13 @@ It never overwrites the aperi configuration, and every file it replaces is
 first backed up as
 .IR file .bak- timestamp .
 Running it again on an account already set up changes nothing.
+.PP
+Every change, with the backups made, is appended with a timestamp to the
+log file
+.IR $XDG_STATE_HOME/aperi/setup.log ,
+together with the start of each run, its options and how it ended
+(finished, failed or interrupted).
+If the log can't be written a warning is printed and the setup goes on.
 .SH STEPS
 .TP
 .B config
@@ -130,6 +137,11 @@ Base directory of the aperi configuration and of
 .RI ( ~/.config
 if not set).
 .TP
+.B XDG_STATE_HOME
+Base directory of the log file
+.RI ( ~/.local/state
+if not set).
+.TP
 .B XDG_DATA_HOME
 Base directory of the deprecated
 .I mimeapps.list
@@ -137,6 +149,9 @@ location
 .RI ( ~/.local/share
 if not set).
 .SH FILES
+.TP
+.I $XDG_STATE_HOME/aperi/setup.log
+The log of the changes made.
 .TP
 .I @EXAMPLESDIR@/
 The example
