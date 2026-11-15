@@ -59,4 +59,4 @@ install_data('extra/config', 'extra/mimeapps.list', 'extra/show_items.py',
 
 test('aperi', find_program('tests/test.sh'),
      env : ['APERI=' + aperi_exe.full_path()],
-     workdir : meson.current_source_dir() / 'tests')
+     protocol : 'tap')
