@@ -402,6 +402,25 @@ If you are using the systemd unit you can add:
 at the end of the configuration file to export LANG and PATH env variables if
 needed.
 
+## Releasing
+
+The version is in `meson.build`, `debian/changelog` and `aperi.spec`: the
+meson version `0.11.0-pre` is `0.11.0~pre` in the other two files.
+`tools/autotag.py --check` checks that they agree.
+
+`tools/autotag.py` can also be installed as a git hook, to tag releases
+automatically:
+
+```
+ln -s ../../tools/autotag.py .git/hooks/post-commit
+ln -s ../../tools/autotag.py .git/hooks/post-merge
+```
+
+After each commit or merge touching those files it warns if the versions
+disagree. On `main`, when the version doesn't contain `pre` and isn't
+tagged yet, it creates the annotated tag `<version>` (not pushed), provided
+the versions agree.
+
 ## Troubleshooting
 
 ### Wine takes over as the default application
