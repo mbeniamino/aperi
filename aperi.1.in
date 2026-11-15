@@ -50,6 +50,8 @@ Every other line has the form:
 Lines are checked in order and the first one with a matching
 .I pattern
 is used: put more specific rules before more generic ones.
+If its program can't be executed, an error is printed and the search
+continues with the following lines.
 If no rule matches, nothing is launched.
 .SS Patterns
 .TP
@@ -131,7 +133,8 @@ is tried before
 .IR gz .
 .PP
 A wrapper is executed with the absolute path of the file as its only
-argument and takes precedence over the configuration file.
+argument and takes precedence over the configuration file, which is used
+if no wrapper can be executed.
 Wrappers handle cases that rules can't express, such as passing the
 argument in a special way.
 .SH FILES
@@ -169,11 +172,11 @@ When a program is launched,
 .B aperi
 is replaced by it and the exit status is the program's.
 .PP
+Otherwise
 .B aperi
 exits with status 1 if the argument is neither an existing file or
-directory nor a URI.
-It exits with status 0 if no rule matches or the program can't be
-executed; in the latter case an error message is printed.
+directory nor a URI, or if a matching wrapper or program couldn't be
+executed, and with status 0 if no rule matches.
 .SH EXAMPLES
 .EX
 # Videos and pdf files

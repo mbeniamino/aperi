@@ -55,5 +55,8 @@ http://,https://=echo http://
 # Double placeholder
 o=%echo 22 test%f-%ftest
 
+# program not found: falls through to the next matching rule
+p=does-not-exist
+
 # catchall
 /*=echo 999

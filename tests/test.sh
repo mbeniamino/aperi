@@ -2,11 +2,12 @@
 # aperi tests. Each case runs aperi on an argument and compares its output
 # with the expected one. Rules are in config/aperi/config. Output is TAP.
 #
-#   file NAME EXPECTED   create the empty file NAME and open it
-#   dir  NAME EXPECTED   create the directory NAME and open it
-#   uri  URI  EXPECTED   open URI
+#   file NAME EXPECTED [STATUS]   create the empty file NAME and open it
+#   dir  NAME EXPECTED [STATUS]   create the directory NAME and open it
+#   uri  URI  EXPECTED [STATUS]   open URI
 #
-# The temporary directory path is stripped from aperi output.
+# STATUS is the expected exit status (default 0). The temporary directory
+# path is stripped from aperi output.
 #
 # Usage: test.sh [path to aperi executable, default ../build/aperi]
 
@@ -20,22 +21,24 @@ tmp=$(realpath "$tmp")
 n=0
 failed=0
 
-check() { # check ARG EXPECTED NAME
+check() { # check ARG EXPECTED NAME [STATUS]
     n=$((n + 1))
-    got=$("$APERI" "$1" 2>&1 | sed "s|$tmp/||g")
-    if [ "$got" = "$2" ]; then
+    got=$("$APERI" "$1" 2>&1)
+    status=$?
+    got=$(printf '%s\n' "$got" | sed "s|$tmp/||g")
+    if [ "$got" = "$2" ] && [ "$status" = "${4:-0}" ]; then
         echo "ok $n - $3"
     else
         failed=$((failed + 1))
         echo "not ok $n - $3"
-        echo "#   expected: '$2'"
-        echo "#        got: '$got'"
+        echo "#   expected: '$2' (status ${4:-0})"
+        echo "#        got: '$got' (status $status)"
     fi
 }
 
-file() { : > "$tmp/$1" && check "$tmp/$1" "$2" "$1"; }
-dir() { mkdir -p "$tmp/$1" && check "$tmp/$1" "$2" "$1/"; }
-uri() { check "$1" "$2" "$1"; }
+file() { : > "$tmp/$1" && check "$tmp/$1" "$2" "$1" "$3"; }
+dir() { mkdir -p "$tmp/$1" && check "$tmp/$1" "$2" "$1/" "$3"; }
+uri() { check "$1" "$2" "$1" "$3"; }
 
 # Extensions
 file test.a       '1 test.a'
@@ -72,6 +75,11 @@ dir dir           '5 dir'
 # URIs
 uri http://test       'http:// http://test'
 uri http://youtu.be/  'http://youtu.be/ http://youtu.be/'
+
+# Errors
+file test.p       'Error executing does-not-exist: No such file or directory
+999 test.p'
+uri missing       "Couldn't stat missing. Exiting." 1
 
 echo "1..$n"
 [ "$failed" -eq 0 ]

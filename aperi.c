@@ -28,6 +28,8 @@ typedef struct Aperi {
     FILE* config_f;
     // the last parsed char from the config file is inside double quotes
     int quoting;
+    // a wrapper or program couldn't be executed
+    int launch_failed;
 } Aperi;
 
 // Init aperi struct members. `file_path` is the url/file to open.
@@ -108,6 +110,7 @@ int strnicmp(const char* s1, const char* s2, size_t n);
 
 void aperi_init(Aperi* aperi, char* file_path) {
     aperi->config_f = NULL;
+    aperi->launch_failed = 0;
     aperi_init_config_dir_path(aperi);
     // If file_path starts with file://, remove it
     if (strncmp(file_path, "file://", 7) == 0) {
@@ -301,6 +304,7 @@ void aperi_check_for_wrapper_and_exec(Aperi *aperi) {
             execvp(argv[0], argv);
             if (errno != ENOENT) {
                 fprintf(stderr, "Couldn't launch wrapper %s: %s\n", argv[0], strerror(errno));
+                aperi->launch_failed = 1;
             }
             free(argv[1]);
         }
@@ -430,6 +434,7 @@ void aperi_read_app_and_launch(Aperi* aperi) {
     // exec the program
     execvp(argv[0], argv);
     fprintf(stderr, "Error executing %s: %s\n", argv[0], strerror(errno));
+    aperi->launch_failed = 1;
     for(int i = 0; i < used_args; ++i) free(argv[i]);
     free(argv);
 }
@@ -599,8 +604,9 @@ int main(int argc, char* argv[]) {
 
     Aperi aperi;
     aperi_init(&aperi, argv[1]);
+    // if we get here no program was executed
     aperi_launch_associated_app(&aperi);
     aperi_deinit(&aperi);
 
-    return 0;
+    return aperi.launch_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
