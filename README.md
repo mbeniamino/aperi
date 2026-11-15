@@ -122,7 +122,7 @@ same files under a prefix (`/usr` or `~/.local` in the examples below):
 
 | File                                    | Purpose                                  |
 |-----------------------------------------|------------------------------------------|
-| `<prefix>/bin/aperi`, `app-chooser`, `aperi-session` | executables                 |
+| `<prefix>/bin/aperi`, `app-chooser`, `aperi-session`, `aperi-setup` | executables |
 | `<prefix>/share/applications/aperi.desktop` | desktop entry, needed by `mimeapps.list` |
 | systemd user unit `aperi-session.service` | starts `aperi-session` (see below)     |
 | `<prefix>/share/doc/aperi/examples/`    | example `config`, `mimeapps.list`, `show_items.py` |
@@ -167,7 +167,15 @@ copy them where needed, and fix the `ExecStart` path in the unit.
 
 ## Setting up a user account
 
-In the following, `<examples>` is `<prefix>/share/doc/aperi/examples` (e.g.
+The `aperi-setup` script, installed with aperi, performs the steps below
+interactively: it asks before each step, backs up the files it replaces and
+never overwrites the aperi configuration. Run `aperi-setup --help` for the
+options, e.g. `--yes` to use the default answers without asking, `--skip
+STEP`/`--only STEP` to choose the steps and `--examples DIR` to use the
+example files of the source tree (`extra`) when aperi is not installed. You
+still need to adapt the rules of the configuration to your programs.
+
+To perform the steps by hand: in the following, `<examples>` is `<prefix>/share/doc/aperi/examples` (e.g.
 `/usr/share/doc/aperi/examples` or `~/.local/share/doc/aperi/examples`), or
 the `extra` directory of the source tree.
 

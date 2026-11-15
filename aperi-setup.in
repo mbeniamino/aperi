@@ -1,0 +1,380 @@
+#!/bin/sh
+# aperi-setup: configure the current user account to use aperi and
+# aperi-session. See "Setting up a user account" in the aperi README.
+
+APERI_BIN='@bindir@/aperi'
+EXAMPLES='@examplesdir@'
+VERSION='@version@'
+
+CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+BIN_HOME=$HOME/.local/bin
+APERI_CONFIG=$CONFIG_HOME/aperi/config
+STEPS='config mimeapps xdg-open session show-items'
+
+usage() {
+    cat <<EOF
+Usage: aperi-setup [OPTION]...
+Configure the current user account to use aperi and aperi-session.
+
+Steps (all run by default, each one asks for confirmation):
+  config      create $APERI_CONFIG from the example
+  mimeapps    make aperi the default application in mimeapps.list
+  xdg-open    link $BIN_HOME/xdg-open to aperi
+  session     start aperi-session at login
+  show-items  install show_items.py to handle FileManager1 ShowItems
+
+Options:
+  -y, --yes             don't ask, use the default answers. An existing
+                        mimeapps.list is backed up and replaced
+  -s, --skip STEP       skip STEP (can be repeated)
+  -o, --only STEP       run only STEP (can be repeated)
+      --session MODE    how to start aperi-session: systemd, compositor or
+                        none (default: ask; with --yes systemd if available)
+      --examples DIR    directory with the example files
+                        (default: $EXAMPLES)
+  -h, --help            show this help and exit
+  -V, --version         show version and exit
+
+Replaced files are backed up as FILE.bak-<timestamp>.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+info() { printf '%s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() { printf 'aperi-setup: %s\n' "$*" >&2; exit 1; }
+
+# ask QUESTION DEFAULT(y|n): returns 0 for yes
+ask() {
+    if [ "$YES" ]; then
+        [ "$2" = y ]
+        return
+    fi
+    if [ "$2" = y ]; then hint='[Y/n]'; else hint='[y/N]'; fi
+    while :; do
+        printf '%s %s ' "$1" "$hint"
+        read -r answer || die "unexpected end of input"
+        case $answer in
+            '') [ "$2" = y ]; return ;;
+            [yY]*) return 0 ;;
+            [nN]*) return 1 ;;
+        esac
+    done
+}
+
+# choose QUESTION DEFAULT KEY:DESCRIPTION...: sets $choice to the chosen key
+choose() {
+    question=$1 default=$2
+    shift 2
+    if [ "$YES" ]; then
+        choice=$default
+        return
+    fi
+    info "$question"
+    for opt; do
+        key=${opt%%:*}
+        mark=' '
+        [ "$key" = "$default" ] && mark='*'
+        printf '  %s %s) %s\n' "$mark" "$key" "${opt#*:}"
+    done
+    while :; do
+        printf 'Choice [%s]: ' "$default"
+        read -r choice || die "unexpected end of input"
+        [ -z "$choice" ] && choice=$default
+        for opt; do
+            [ "$choice" = "${opt%%:*}" ] && return
+        done
+    done
+}
+
+backup() {
+    bak="$1.bak-$(date +%Y%m%d%H%M%S)"
+    mv -- "$1" "$bak" || die "cannot back up $1"
+    info "Backed up $1 to $bak"
+}
+
+enabled() {
+    case " $SKIP " in *" $1 "*) return 1 ;; esac
+    [ -z "$ONLY" ] && return 0
+    case " $ONLY " in *" $1 "*) return 0 ;; esac
+    return 1
+}
+
+check_step() {
+    case " $STEPS " in *" $1 "*) ;; *) die "unknown step '$1' (steps: $STEPS)" ;; esac
+}
+
+example() {
+    [ -f "$EXAMPLES/$1" ] || die "example file $EXAMPLES/$1 not found (use --examples)"
+    printf '%s\n' "$EXAMPLES/$1"
+}
+
+# ---------------------------------------------------------------------------
+# Steps
+# ---------------------------------------------------------------------------
+
+do_config() {
+    step "aperi configuration ($APERI_CONFIG)"
+    if [ -e "$APERI_CONFIG" ]; then
+        info "Already exists, left untouched."
+        return
+    fi
+    src=$(example config) || exit 1
+    ask "Create it from the example configuration?" y || return
+    mkdir -p "${APERI_CONFIG%/*}" && cp -- "$src" "$APERI_CONFIG" || die "cannot create $APERI_CONFIG"
+    CREATED_CONFIG=1
+    info "Created $APERI_CONFIG: edit its rules to use your programs."
+}
+
+# merge_mimeapps MODE EXAMPLE FILE: print FILE with the [Default
+# Applications] entries of EXAMPLE added. MODE keep: existing defaults are
+# kept; MODE aperi: the example entries replace the existing ones.
+merge_mimeapps() {
+    awk -v mode="$1" '
+        function flush(   i, k) {
+            for (i = 1; i <= n; i++) {
+                k = order[i]
+                if (!(k in done)) { print k "=" ex[k]; done[k] = 1 }
+            }
+        }
+        FNR == NR {
+            if ($0 ~ /^\[/) exsec = ($0 == "[Default Applications]")
+            else if (exsec && $0 ~ /^[^#].*=/) {
+                k = $0; sub(/=.*/, "", k)
+                v = $0; sub(/^[^=]*=/, "", v)
+                if (!(k in ex)) order[++n] = k
+                ex[k] = v
+            }
+            next
+        }
+        /^\[/ {
+            if (insec) flush()
+            insec = ($0 == "[Default Applications]")
+            if (insec) seen = 1
+            print
+            next
+        }
+        insec && /^[^#].*=/ {
+            k = $0; sub(/=.*/, "", k)
+            if (k in ex) {
+                done[k] = 1
+                if (mode == "aperi") { print k "=" ex[k]; next }
+            }
+        }
+        { print }
+        END {
+            if (insec) flush()
+            else if (!seen) { print ""; print "[Default Applications]"; flush() }
+        }
+    ' "$2" "$3"
+}
+
+do_mimeapps() {
+    target=$CONFIG_HOME/mimeapps.list
+    step "Default applications ($target)"
+    src=$(example mimeapps.list) || exit 1
+    if [ ! -f "@datadir@/applications/aperi.desktop" ] &&
+        [ ! -f "$DATA_HOME/applications/aperi.desktop" ]; then
+        warn "aperi.desktop not found: the associations need it to work"
+    fi
+
+    if [ -e "$target" ] && cmp -s -- "$src" "$target"; then
+        info "Already the same as the example."
+    elif [ -e "$target" ] && [ ! -L "$target" ] && [ -s "$target" ]; then
+        # interactive default: the safest choice; with --yes: replace
+        if [ "$YES" ]; then default=r; else default=k; fi
+        choose "$target already exists. What should be done?" "$default" \
+            "k:merge, keep the existing defaults (aperi only for the other types)" \
+            "a:merge, aperi becomes the default for all its types" \
+            "r:back up and replace it with the example" \
+            "s:skip"
+        case $choice in
+            s) return ;;
+            r) backup "$target" && cp -- "$src" "$target" || die "cannot write $target" ;;
+            *)
+                [ "$choice" = k ] && mode=keep || mode=aperi
+                tmp=$(mktemp "$target.XXXXXX") || die "cannot create a temporary file"
+                if merge_mimeapps "$mode" "$src" "$target" > "$tmp"; then
+                    cp -p -- "$target" "$target.bak-$(date +%Y%m%d%H%M%S)" &&
+                        mv -- "$tmp" "$target" || { rm -f "$tmp"; die "cannot write $target"; }
+                    info "Merged into $target (previous version backed up)."
+                else
+                    rm -f "$tmp"
+                    die "merge of $target failed"
+                fi
+                ;;
+        esac
+    else
+        ask "Associate the common MIME types with aperi?" y || return
+        mkdir -p "$CONFIG_HOME" && cp -- "$src" "$target" || die "cannot write $target"
+        info "Created $target."
+    fi
+
+    # Many applications still read the deprecated location
+    old=$DATA_HOME/applications/mimeapps.list
+    if [ -L "$old" ] && [ "$(readlink -- "$old")" = "$target" ]; then
+        return
+    fi
+    if [ -e "$old" ] || [ -L "$old" ]; then
+        ask "Replace the deprecated $old with a link to $target?" y || return
+        backup "$old"
+    else
+        ask "Link the deprecated location $old to $target?" y || return
+    fi
+    mkdir -p "${old%/*}" && ln -s -- "$target" "$old" || die "cannot create $old"
+    info "Linked $old."
+}
+
+do_xdg_open() {
+    link=$BIN_HOME/xdg-open
+    step "xdg-open replacement ($link)"
+    if [ -L "$link" ] && [ "$(readlink -- "$link")" = "$APERI_BIN" ]; then
+        info "Already linked to aperi."
+    elif [ -e "$link" ] || [ -L "$link" ]; then
+        warn "$link already exists and is not a link to aperi"
+        # with --yes it is left alone: it could be the user's own script
+        [ "$YES" ] && return
+        ask "Back it up and replace it with a link to aperi?" n || return
+        backup "$link"
+        ln -s -- "$APERI_BIN" "$link" || die "cannot create $link"
+    else
+        ask "Use aperi in place of xdg-open (link $link)?" y || return
+        mkdir -p "$BIN_HOME" && ln -s -- "$APERI_BIN" "$link" || die "cannot create $link"
+        info "Linked $link."
+    fi
+    found=$(command -v xdg-open)
+    if [ "$found" != "$link" ]; then
+        warn "xdg-open resolves to ${found:-nothing}: put $BIN_HOME before the other directories in PATH"
+    fi
+}
+
+have_systemd() {
+    command -v systemctl >/dev/null 2>&1 &&
+        systemctl --user show-environment >/dev/null 2>&1 &&
+        systemctl --user cat aperi-session.service >/dev/null 2>&1
+}
+
+do_session() {
+    step "aperi-session"
+    if [ -z "$SESSION" ]; then
+        if have_systemd; then default=systemd; else default=compositor; fi
+        choose "How should aperi-session be started at login?" "$default" \
+            "systemd:systemd user unit aperi-session.service" \
+            "compositor:from the compositor configuration (instructions are printed)" \
+            "none:don't start it"
+        SESSION=$choice
+    fi
+    case $SESSION in
+        systemd)
+            have_systemd || die "systemd user manager or aperi-session.service not available"
+            systemctl --user daemon-reload &&
+                systemctl --user enable aperi-session.service || die "cannot enable aperi-session.service"
+            if systemctl --user -q is-active graphical-session.target; then
+                systemctl --user start aperi-session.service &&
+                    info "aperi-session.service enabled and started."
+            else
+                info "aperi-session.service enabled: it will start with the next graphical session."
+                info "It requires graphical-session.target: with sway use e.g. uwsm or sway-systemd."
+            fi
+            ;;
+        compositor)
+            info "Add to the startup commands of your compositor, e.g. for sway"
+            info "(${XDG_CONFIG_HOME:-~/.config}/sway/config):"
+            info ""
+            info "    exec @bindir@/aperi-session --exit-with-session"
+            ;;
+        none) ;;
+    esac
+}
+
+do_show_items() {
+    script=$BIN_HOME/show_items.py
+    step "ShowItems handler ($script)"
+    src=$(example show_items.py) || exit 1
+    if [ -e "$script" ] && cmp -s -- "$src" "$script"; then
+        info "Already installed."
+    elif [ -e "$script" ]; then
+        warn "$script already exists and differs from the example: left untouched"
+    else
+        ask "Install the example show_items.py?" y || return
+        mkdir -p "$BIN_HOME" && cp -- "$src" "$script" && chmod 755 "$script" ||
+            die "cannot install $script"
+        info "Installed $script: adapt the terminal and shell it launches."
+    fi
+    for dep in python3 wl-copy alacritty zsh; do
+        command -v "$dep" >/dev/null 2>&1 || warn "$dep, used by show_items.py, not found"
+    done
+
+    # The absolute path is used since the systemd user manager PATH usually
+    # doesn't contain ~/.local/bin
+    case $script in *' '*) cmd="\"$script\"" ;; *) cmd=$script ;; esac
+    rule="aperi-show-items://=$cmd"
+    if [ ! -f "$APERI_CONFIG" ]; then
+        warn "$APERI_CONFIG doesn't exist: add the rule '$rule' to it"
+        return
+    fi
+    existing=$(grep -m1 '^aperi-show-items://' "$APERI_CONFIG")
+    if [ "$existing" = "$rule" ]; then
+        return
+    elif [ "$existing" = "aperi-show-items://=show_items.py" ] && [ "$CREATED_CONFIG" ]; then
+        # rule from the example config just created: make the path absolute
+        tmp=$(mktemp "$APERI_CONFIG.XXXXXX") &&
+            awk -v rule="$rule" '!done && /^aperi-show-items:\/\//{print rule; done=1; next} 1' \
+                "$APERI_CONFIG" > "$tmp" && mv -- "$tmp" "$APERI_CONFIG" ||
+            die "cannot update $APERI_CONFIG"
+        info "Set the ShowItems rule to $rule"
+    elif [ "$existing" ]; then
+        info "$APERI_CONFIG already has a ShowItems rule: $existing"
+    else
+        ask "Add the rule '$rule' to $APERI_CONFIG?" y || return
+        # rules are matched in order: insert it before the first catch all rule
+        tmp=$(mktemp "$APERI_CONFIG.XXXXXX") &&
+            awk -v rule="$rule" '
+                !done && /^\/\*=/ { print rule; done = 1 }
+                { print }
+                END { if (!done) print rule }
+            ' "$APERI_CONFIG" > "$tmp" && mv -- "$tmp" "$APERI_CONFIG" ||
+            die "cannot update $APERI_CONFIG"
+        info "Added the rule to $APERI_CONFIG."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+YES= SKIP= ONLY= SESSION= CREATED_CONFIG=
+while [ $# -gt 0 ]; do
+    case $1 in
+        -y|--yes) YES=1 ;;
+        -s|--skip) [ $# -ge 2 ] || die "$1 needs an argument"; check_step "$2"; SKIP="$SKIP $2"; shift ;;
+        -o|--only) [ $# -ge 2 ] || die "$1 needs an argument"; check_step "$2"; ONLY="$ONLY $2"; shift ;;
+        --session) [ $# -ge 2 ] || die "$1 needs an argument"; SESSION=$2; shift ;;
+        --session=*) SESSION=${1#*=} ;;
+        --examples) [ $# -ge 2 ] || die "$1 needs an argument"; EXAMPLES=$2; shift ;;
+        --examples=*) EXAMPLES=${1#*=} ;;
+        -h|--help) usage; exit 0 ;;
+        -V|--version) echo "aperi-setup $VERSION"; exit 0 ;;
+        *) usage >&2; exit 1 ;;
+    esac
+    shift
+done
+case $SESSION in ''|systemd|compositor|none) ;; *) die "invalid --session '$SESSION'" ;; esac
+[ "$HOME" ] || die "HOME is not set"
+if [ -z "$YES" ] && [ ! -t 0 ]; then
+    die "standard input is not a terminal: use --yes to run non-interactively"
+fi
+[ -x "$APERI_BIN" ] || warn "$APERI_BIN not found: is aperi installed?"
+
+enabled config && do_config
+enabled mimeapps && do_mimeapps
+enabled xdg-open && do_xdg_open
+enabled session && do_session
+enabled show-items && do_show_items
+step "Done"
+exit 0

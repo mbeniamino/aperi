@@ -1,5 +1,6 @@
 _session_hint() {
   cat <<'MSG'
+==> Run aperi-setup as your user to configure your account for aperi.
 ==> aperi-session (FileManager1 D-Bus service and wine associations wiper)
     can be started at login with the systemd user unit:
       systemctl --user enable --now aperi-session.service

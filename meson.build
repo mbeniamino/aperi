@@ -48,6 +48,19 @@ configure_file(input : 'extra/aperi-session.service.in',
                install : unit_dir != 'no',
                install_dir : unit_dir)
 
+# aperi-setup, to configure a user account
+setup_data = configuration_data()
+setup_data.set('bindir', bindir)
+setup_data.set('datadir', datadir)
+setup_data.set('examplesdir', datadir / 'doc' / meson.project_name() / 'examples')
+setup_data.set('version', meson.project_version())
+configure_file(input : 'aperi-setup.in',
+               output : 'aperi-setup',
+               configuration : setup_data,
+               install : true,
+               install_dir : bindir,
+               install_mode : 'rwxr-xr-x')
+
 # Desktop entry, so that aperi can be chosen as the default application
 install_data('extra/aperi.desktop', install_dir : datadir / 'applications')
 

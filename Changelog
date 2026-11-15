@@ -12,6 +12,7 @@ v 0.11
 - The global configuration directory follows the configured sysconfdir
 - Tests can be run with `meson test`
 - Added a PKGBUILD for Arch Linux
+- Added `aperi-setup`, to configure a user account to use aperi and aperi-session
 
 v 0.10.1
 - Fixed a bug when multiple %f were present in a single argument
