@@ -1,0 +1,52 @@
+.TH APP-CHOOSER 1 2026-11-15 "aperi @VERSION@" "User Commands"
+.SH NAME
+app-chooser \- open a file or URI with the desktop application chooser
+.SH SYNOPSIS
+.B app-chooser
+.I file
+|
+.I uri
+.SH DESCRIPTION
+.B app-chooser
+asks the desktop portal to open its argument, always showing the dialog to
+choose the application to use.
+It is meant as the last, catch all rule of the
+.BR aperi (1)
+configuration, to choose an application for everything without a more
+specific rule:
+.PP
+.RS
+.EX
+/*=app-chooser
+.EE
+.RE
+.PP
+An argument containing
+.B ://
+is opened as a URI with the
+.B OpenURI
+method of the
+.B org.freedesktop.portal.OpenURI
+D-Bus interface; anything else is opened as a file with the
+.B OpenFile
+method.
+.PP
+Without arguments,
+.B app-chooser
+prints its version and a short usage message.
+.SH EXIT STATUS
+.B app-chooser
+exits with status 0 once the portal has answered the request, and with
+status 1 if the file can't be opened, the session bus is not available or
+the request can't be sent.
+.SH NOTES
+A running
+.B xdg-desktop-portal
+is needed, with a backend providing the application chooser dialog (e.g.\&
+.B xdg-desktop-portal-gtk
+or
+.BR xdg-desktop-portal-gnome ).
+.SH SEE ALSO
+.BR aperi (1)
+.SH AUTHORS
+Matteo Beniamino <m.beniamino@tautologica.org>

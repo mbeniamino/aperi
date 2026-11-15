@@ -1,0 +1,173 @@
+.TH APERI-SETUP 1 2026-11-15 "aperi @VERSION@" "User Commands"
+.SH NAME
+aperi-setup \- configure a user account to use aperi
+.SH SYNOPSIS
+.B aperi-setup
+.RI [ option ]...
+.SH DESCRIPTION
+.B aperi-setup
+configures the account of the user running it to use
+.BR aperi (1)
+and
+.BR aperi-session (1).
+It performs the steps below, in order.
+For each step it shows what it is going to do and asks for confirmation,
+unless
+.B \-\-yes
+is given.
+.PP
+It never overwrites the aperi configuration, and every file it replaces is
+first backed up as
+.IR file .bak- timestamp .
+Running it again on an account already set up changes nothing.
+.SH STEPS
+.TP
+.B config
+Create
+.I $XDG_CONFIG_HOME/aperi/config
+from the example configuration, if it doesn't exist.
+Its rules must then be adapted to the programs you use.
+.TP
+.B mimeapps
+Make aperi the default application for the common MIME types in
+.IR $XDG_CONFIG_HOME/mimeapps.list .
+If the file already exists, ask whether to merge the aperi associations
+keeping the existing defaults (the default answer), merge them replacing the
+existing defaults, back up and replace the file, or skip the step; with
+.B \-\-yes
+the file is backed up and replaced.
+Only the
+.B [Default Applications]
+section is changed by a merge.
+Then make the deprecated
+.I $XDG_DATA_HOME/applications/mimeapps.list
+a link to it.
+.TP
+.B xdg-open
+Link
+.I ~/.local/bin/xdg-open
+to
+.BR aperi ,
+to use it in place of
+.BR xdg-open (1),
+and warn if it's not the first
+.B xdg-open
+in
+.BR PATH .
+An existing
+.I ~/.local/bin/xdg-open
+that isn't such a link is replaced only after confirmation, never with
+.BR \-\-yes .
+.TP
+.B session
+Ask how to start
+.B aperi-session
+at login: enable the
+.B aperi-session.service
+systemd user unit (starting it if a graphical session is active), print the
+line to add to the compositor startup commands, or nothing.
+With
+.B \-\-yes
+the unit is used if a systemd user manager is running, otherwise the
+compositor line is printed.
+Compositor configuration files are never modified.
+.TP
+.B show-items
+Install the example
+.I show_items.py
+in
+.I ~/.local/bin
+and add an
+.B aperi-show-items://
+rule using it to the aperi configuration, before the catch all
+.B /*
+rule if there is one.
+The rule uses the absolute path of the script, since the
+.B PATH
+of the systemd user manager usually doesn't contain
+.IR ~/.local/bin .
+Warn about the missing programs the script needs.
+.SH OPTIONS
+.TP
+.BR \-y ", " \-\-yes
+Don't ask: use the default answers.
+Without this option the standard input must be a terminal.
+.TP
+.BR \-s ", " \-\-skip " \fIstep\fR"
+Skip
+.IR step .
+Can be repeated.
+.TP
+.BR \-o ", " \-\-only " \fIstep\fR"
+Run only
+.IR step .
+Can be repeated.
+.TP
+.BR \-\-session " \fBsystemd\fR|\fBcompositor\fR|\fBnone\fR"
+How to start
+.BR aperi-session ,
+without asking.
+.TP
+.BR \-\-examples " \fIdirectory\fR"
+Take the example files from
+.I directory
+instead of
+.IR @EXAMPLESDIR@ ,
+e.g.\& the
+.I extra
+directory of the aperi source tree.
+.TP
+.BR \-h ", " \-\-help
+Show a help message and exit.
+.TP
+.BR \-V ", " \-\-version
+Show the version and exit.
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+Base directory of the aperi configuration and of
+.I mimeapps.list
+.RI ( ~/.config
+if not set).
+.TP
+.B XDG_DATA_HOME
+Base directory of the deprecated
+.I mimeapps.list
+location
+.RI ( ~/.local/share
+if not set).
+.SH FILES
+.TP
+.I @EXAMPLESDIR@/
+The example
+.IR config ,
+.I mimeapps.list
+and
+.I show_items.py
+files.
+.SH EXIT STATUS
+0 on success, 1 on errors or invalid options.
+.SH EXAMPLES
+Set up everything, answering each question:
+.PP
+.RS
+.EX
+aperi-setup
+.EE
+.RE
+.PP
+Set up everything but the xdg-open link without asking, starting
+.B aperi-session
+from the compositor:
+.PP
+.RS
+.EX
+aperi-setup \-\-yes \-\-skip xdg-open \-\-session compositor
+.EE
+.RE
+.SH SEE ALSO
+.BR aperi (1),
+.BR aperi-session (1),
+.BR xdg-mime (1)
+.SH AUTHORS
+Matteo Beniamino <m.beniamino@tautologica.org>

@@ -13,6 +13,8 @@ v 0.11
 - Tests can be run with `meson test`
 - Added a PKGBUILD for Arch Linux
 - Added `aperi-setup`, to configure a user account to use aperi and aperi-session
+- Rewritten the `aperi(1)` man page and added `app-chooser(1)`, `aperi-session(1)`
+  and `aperi-setup(1)`; all are installed by meson
 
 v 0.10.1
 - Fixed a bug when multiple %f were present in a single argument

@@ -1,0 +1,217 @@
+.TH APERI 1 2026-11-15 "aperi @VERSION@" "User Commands"
+.SH NAME
+aperi \- open a file, directory or URI with the associated program
+.SH SYNOPSIS
+.B aperi
+.I file
+|
+.I directory
+|
+.I uri
+.SH DESCRIPTION
+.B aperi
+is a simple resource opener.
+It reads its configuration file, finds the first rule matching its argument,
+based on the file extension, the URI schema or the argument type, and
+replaces itself with the associated program, passing it the argument.
+.PP
+Without arguments,
+.B aperi
+prints its version and a short usage message.
+Arguments after the first one are ignored.
+.SS Argument handling
+If the argument starts with
+.BR file:// ,
+that prefix is removed and the rest is percent decoded.
+.PP
+If the argument is an existing file or directory, it is passed to the
+program as an absolute path.
+Otherwise, if it contains
+.BR :// ,
+it is handled as a URI and passed unchanged.
+Otherwise
+.B aperi
+exits with an error.
+.SH CONFIGURATION
+The configuration file contains one rule per line.
+Empty lines and lines starting with
+.B #
+are ignored.
+Every other line has the form:
+.PP
+.RS
+.IR pattern [ ,\c
+.IR pattern ]...\c
+.BR = [ % ]\c
+.I program
+.RI [ arg ]...
+.RE
+.PP
+Lines are checked in order and the first one with a matching
+.I pattern
+is used: put more specific rules before more generic ones.
+If no rule matches, nothing is launched.
+.SS Patterns
+.TP
+.I ext
+Matches a file whose name ends with
+.BI . ext\c
+, compared case insensitively, e.g.\&
+.B pdf
+or
+.BR tar.gz .
+.TP
+.IB schema ://\c
+.RI [ prefix ]
+A pattern containing
+.B ://
+matches a URI starting with it, compared case sensitively, e.g.\&
+.B https://
+or
+.BR https://youtu.be/ .
+.TP
+.B /
+Matches a directory.
+.TP
+.B /*
+Matches any argument.
+It is usually the last rule, as a catch all.
+.SS Program and arguments
+.I program
+is the name of an executable, searched in
+.BR PATH ,
+or its path.
+It is executed with the
+.IR arg s
+given in the rule, followed by the
+.B aperi
+argument.
+.PP
+If the
+.B =
+is followed by
+.BR % ,
+the
+.B aperi
+argument is not appended and these placeholders are expanded in the
+.IR arg s:
+.TP
+.B %f
+the
+.B aperi
+argument (absolute path or URI);
+.TP
+.B %%
+a literal
+.BR % .
+.PP
+Other placeholders are invalid and give unspecified results.
+.SS Quoting
+Patterns containing
+.B ,
+or
+.BR = ,
+arguments containing spaces and programs starting with
+.B %
+must be enclosed in double quotes.
+Two consecutive double quotes inside a quoted string produce a literal
+double quote.
+.SH WRAPPERS
+Before reading the configuration file, for a file argument
+.B aperi
+looks in the
+.I wrappers
+subdirectory of the configuration directory for an executable named as the
+file extension.
+For multiple extensions the longest one is tried first: for
+.I archive.tar.gz
+the wrapper
+.I tar.gz
+is tried before
+.IR gz .
+.PP
+A wrapper is executed with the absolute path of the file as its only
+argument and takes precedence over the configuration file.
+Wrappers handle cases that rules can't express, such as passing the
+argument in a special way.
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/aperi/config
+The user configuration file
+.RI ( ~/.config/aperi/config
+if
+.B XDG_CONFIG_HOME
+is not set).
+.TP
+.I $XDG_CONFIG_HOME/aperi/wrappers/
+The user wrappers directory.
+.TP
+.I @SYSCONFDIR@/aperi/
+The global configuration directory, with the same layout.
+It is used only if the user configuration directory doesn't exist.
+.TP
+.I @DATADIR@/doc/aperi/examples/config
+An example configuration file.
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+Base directory of the user configuration.
+.TP
+.B HOME
+Used when
+.B XDG_CONFIG_HOME
+is not set.
+.TP
+.B PATH
+Used to find the programs to execute.
+.SH EXIT STATUS
+When a program is launched,
+.B aperi
+is replaced by it and the exit status is the program's.
+.PP
+.B aperi
+exits with status 1 if the argument is neither an existing file or
+directory nor a URI.
+It exits with status 0 if no rule matches or the program can't be
+executed; in the latter case an error message is printed.
+.SH EXAMPLES
+.EX
+# Videos and pdf files
+mp4,mkv=mpv
+pdf=zathura
+
+# More specific URI rules first
+https://youtu.be/=mpv
+http://,https://=firefox
+
+# Directories in a terminal file manager
+/=%foot yazi %f
+
+# Quoting and placeholders: echo receives a single argument
+txt=%echo "The file ""%f"" costs 5%%"
+
+# Ask for everything else
+/*=app-chooser
+.EE
+.PP
+To use
+.B aperi
+in place of
+.BR xdg-open (1),
+put a link to it named
+.B xdg-open
+in a directory that comes first in
+.BR PATH .
+.BR aperi-setup (1)
+configures a user account, including the default applications and the
+.B xdg-open
+link.
+.SH SEE ALSO
+.BR app-chooser (1),
+.BR aperi-session (1),
+.BR aperi-setup (1),
+.BR xdg-open (1)
+.PP
+.I @DATADIR@/doc/aperi/README.md
+.SH AUTHORS
+Matteo Beniamino <m.beniamino@tautologica.org>

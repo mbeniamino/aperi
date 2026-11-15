@@ -1,0 +1,175 @@
+.TH APERI-SESSION 1 2026-11-15 "aperi @VERSION@" "User Commands"
+.SH NAME
+aperi-session \- session helper for aperi
+.SH SYNOPSIS
+.B aperi-session
+.RI [ option ]...
+.SH DESCRIPTION
+.B aperi-session
+is a small daemon meant to be started at the beginning of the graphical
+session, by the
+.B aperi-session.service
+systemd user unit or by the compositor.
+It provides two features, each of which can be disabled:
+.TP
+.B fm1
+A minimal implementation of the
+.B org.freedesktop.FileManager1
+D-Bus service, used for example by browsers to show a downloaded file in
+its folder.
+Only the
+.B ShowItems
+method is implemented: for every
+.B file://
+URI it receives,
+.B aperi-session
+runs
+.PP
+.RS
+.RS
+.B aperi aperi-show-items://\c
+.I percent-encoded-path
+.RE
+.PP
+so that the request can be handled by an
+.B aperi-show-items://
+rule in the
+.BR aperi (1)
+configuration.
+The program is fully detached from
+.B aperi-session
+and inherits its environment.
+.RE
+.TP
+.B wipewine
+Removal of the
+.I wine-extension*.desktop
+and
+.I wine-protocol*.desktop
+files that wine creates in
+.IR $XDG_DATA_HOME/applications ,
+both those present at startup and the new ones, as soon as they are
+created.
+These files make wine programs the default applications for common file
+types.
+.PP
+Only one instance per user can run: a second one prints a message and
+exits with status 0.
+.B aperi-session
+reports its readiness to systemd (the unit has
+.BR Type=notify )
+and exits cleanly on
+.BR SIGTERM ,
+.B SIGINT
+and
+.BR SIGHUP .
+.SH OPTIONS
+.TP
+.BR \-F ", " \-\-no\-fm1
+Don't provide the org.freedesktop.FileManager1 service.
+It is always disabled if aperi was built without D-Bus support.
+.TP
+.BR \-W ", " \-\-no\-wipewine
+Don't remove the wine file association desktop files.
+.TP
+.BR \-s ", " \-\-exit\-with\-session
+Exit when the Wayland compositor
+.RB ( $WAYLAND_DISPLAY )
+terminates, so that
+.B aperi-session
+doesn't outlive the session when it's started by the compositor.
+.TP
+.BR \-h ", " \-\-help
+Show a help message and exit.
+.TP
+.BR \-V ", " \-\-version
+Show the version and exit.
+.SH ENVIRONMENT
+.TP
+.B XDG_DATA_HOME
+Base directory of the applications directory watched by wipewine
+.RI ( ~/.local/share
+if not set).
+.TP
+.B XDG_RUNTIME_DIR
+Directory of the single instance lock file and, with
+.BR \-\-exit\-with\-session ,
+of the Wayland socket.
+.TP
+.B WAYLAND_DISPLAY
+The Wayland socket watched with
+.BR \-\-exit\-with\-session .
+.TP
+.B PATH
+Used to find
+.B aperi
+and, through it, the programs handling ShowItems requests.
+.TP
+.B NOTIFY_SOCKET
+Set by systemd to receive the readiness notification.
+.SH FILES
+.TP
+.I @SYSTEMDUSERUNITDIR@/aperi-session.service
+The systemd user unit.
+.TP
+.I $XDG_RUNTIME_DIR/aperi-session.lock
+The single instance lock file
+.RI ( /tmp/aperi-session- uid .lock
+if
+.B XDG_RUNTIME_DIR
+is not set).
+.TP
+.I @DATADIR@/doc/aperi/examples/show_items.py
+An example handler for
+.B aperi-show-items://
+URIs: it copies the path to the clipboard and opens a terminal in the
+folder containing the file.
+.SH EXIT STATUS
+0 when terminated by a signal, when the compositor exits with
+.BR \-\-exit\-with\-session ,
+or when another instance is already running; 1 on errors, including the
+loss of the session bus connection or of the watched directory.
+.SH EXAMPLES
+Start it with the systemd user unit, which requires a session that starts
+.BR graphical-session.target :
+.PP
+.RS
+.EX
+systemctl \-\-user enable \-\-now aperi-session.service
+.EE
+.RE
+.PP
+To pass options, override
+.B ExecStart
+with
+.BR "systemctl \-\-user edit aperi-session.service" :
+.PP
+.RS
+.EX
+[Service]
+ExecStart=
+ExecStart=@BINDIR@/aperi-session \-\-no\-wipewine
+.EE
+.RE
+.PP
+Without systemd, start it from the sway configuration:
+.PP
+.RS
+.EX
+exec aperi-session \-\-exit\-with\-session
+.EE
+.RE
+.PP
+A rule in the aperi configuration to handle ShowItems requests:
+.PP
+.RS
+.EX
+aperi-show-items://=show_items.py
+.EE
+.RE
+.SH SEE ALSO
+.BR aperi (1),
+.BR aperi-setup (1),
+.BR systemd.unit (5)
+.SH AUTHORS
+Matteo Beniamino <m.beniamino@tautologica.org>

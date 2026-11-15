@@ -124,6 +124,7 @@ same files under a prefix (`/usr` or `~/.local` in the examples below):
 |-----------------------------------------|------------------------------------------|
 | `<prefix>/bin/aperi`, `app-chooser`, `aperi-session`, `aperi-setup` | executables |
 | `<prefix>/share/applications/aperi.desktop` | desktop entry, needed by `mimeapps.list` |
+| `<prefix>/share/man/man1/`              | man pages (`aperi`, `app-chooser`, `aperi-session`, `aperi-setup`) |
 | systemd user unit `aperi-session.service` | starts `aperi-session` (see below)     |
 | `<prefix>/share/doc/aperi/examples/`    | example `config`, `mimeapps.list`, `show_items.py` |
 

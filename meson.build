@@ -61,6 +61,27 @@ configure_file(input : 'aperi-setup.in',
                install_dir : bindir,
                install_mode : 'rwxr-xr-x')
 
+# Man pages
+man_data = configuration_data()
+man_data.set('VERSION', meson.project_version())
+man_data.set('BINDIR', bindir)
+man_data.set('SYSCONFDIR', sysconfdir)
+man_data.set('DATADIR', datadir)
+man_data.set('EXAMPLESDIR', datadir / 'doc' / meson.project_name() / 'examples')
+man_data.set('SYSTEMDUSERUNITDIR',
+             unit_dir == 'no' ? prefix / 'lib' / 'systemd' / 'user' : unit_dir)
+man_pages = ['aperi.1', 'aperi-session.1', 'aperi-setup.1']
+if dbus_dep.found()
+  man_pages += ['app-chooser.1']
+endif
+foreach page : man_pages
+  configure_file(input : page + '.in',
+                 output : page,
+                 configuration : man_data,
+                 install : true,
+                 install_dir : prefix / get_option('mandir') / 'man1')
+endforeach
+
 # Desktop entry, so that aperi can be chosen as the default application
 install_data('extra/aperi.desktop', install_dir : datadir / 'applications')
 
