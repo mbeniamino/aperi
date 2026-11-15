@@ -1,5 +1,12 @@
 v 0.11
-- Added service to remove wine file associations as soon as they are created
+- Added `aperi-session`, a session helper to be run by a systemd user unit
+  (sample in `extra/aperi-session.service`). It replaces `aperi_fm1` and
+  provides both the org.freedesktop.FileManager1 ShowItems service and the
+  removal of wine file associations as soon as they are created. Either
+  feature can be disabled with `--no-fm1` / `--no-wipewine`. It can also run without
+  systemd (e.g. `exec aperi-session --exit-with-session` in sway config): only
+  one instance per user runs, and `--exit-with-session` makes it exit together
+  with the Wayland compositor
 
 v 0.10.1
 - Fixed a bug when multiple %f were present in a single argument

@@ -98,18 +98,20 @@ level directory use:
 
 `meson setup --buildtype release build && meson compile -C build`
 
-This will create the `aperi` and, only if dbus development files are available,
-`app-chooser` and `aperi_fm1` executables in the new directory `build`.
+This will create the `aperi` and `aperi-session` and, only if dbus development
+files are available, `app-chooser` executables in the new directory `build`.
+Without dbus, `aperi-session` is built without the FileManager1 service.
 
 ### Manual compilation
 
-To manually compile `Aperi`, `app-chooser` and `aperi_fm1` you can use something like:
+To manually compile `Aperi`, `app-chooser` and `aperi-session` you can use something like
+(run `meson setup build` first, or create `config.h` from `config.h.in`):
 
 `gcc aperi.c -o aperi`
 
 `gcc app-chooser.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o app-chooser`
 
-`gcc aperi_fm1.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o aperi_fm1`
+`gcc -DHAVE_DBUS -Ibuild aperi-session.c $(pkg-config --libs dbus-1) $(pkg-config --cflags dbus-1) -O2 -o aperi-session`
 
 ## Installation
 
@@ -185,30 +187,79 @@ needed):
 
 `dbus-update-activation-environment --systemd LANG PATH`
 
-Aperi includes `aperi_fm1`, a bare minimal implementation of this D-Bus service
-that just implements the ShowItems service. When invoked, the service expects
-to find `aperi` in the path and will spawn `aperi` passing a URI in the form
-`aperi_show_items://<percent encoded path>`. You can configure `aperi` to handle
+Aperi includes `aperi-session`, a session helper (see [Session
+helper](#session-helper-aperi-session)) that, among other things, provides a
+bare minimal implementation of this D-Bus service that just implements the
+ShowItems method. When invoked, the service expects to find `aperi` in the path
+and will spawn `aperi` passing a URI in the form
+`aperi-show-items://<percent encoded path>`. You can configure `aperi` to handle
 these requests as usual. In the `extra` folder you can find an example
 script (`show_items.py`) that can handle such requests. This script copies the
 item path to the clipboard (already escaped for the shell) and spawn a
 terminal, in this case `alacritty`, in the folder containing the file. It then
 launch a `zsh` shell.
 
+### Session helper (aperi-session)
+
+`aperi-session` is a small daemon meant to be started at the beginning of the
+graphical session by a systemd user unit. It provides two features, each of
+which can be disabled from the command line:
+
+- the `org.freedesktop.FileManager1` D-Bus service described above
+  (`-F`/`--no-fm1` to disable; always disabled if built without dbus);
+- removal of the file associations wine creates (see [Systemd service to wipe
+  wine file associations](#systemd-service-to-wipe-wine-file-associations);
+  `-W`/`--no-wipewine` to disable).
+
+A sample unit, `aperi-session.service`, is in the `extra/` directory. Check the
+executable path (and add the options you want) in `ExecStart`, then install it
+in `~/.config/systemd/user/` and enable it:
+
+```
+systemctl --user daemon-reload
+systemctl --user enable --now aperi-session.service
+```
+
+The unit is bound to `graphical-session.target`, so your compositor or desktop
+must start that target (most desktop environments do; with sway you can use
+e.g. [sway-systemd](https://github.com/alebastr/sway-systemd) or `uwsm`).
+Programs spawned via ShowItems inherit the environment of the systemd user
+manager: if `aperi` is not in its `PATH` export it with:
+
+`dbus-update-activation-environment --systemd LANG PATH`
+
+Only one instance per user can run: a second one prints a message and exits
+successfully. `aperi-session` exits cleanly on SIGTERM, SIGINT and SIGHUP.
+
+#### Running without systemd
+
+`aperi-session` does not need systemd: it can be started by the compositor
+itself. With `-s`/`--exit-with-session` it terminates when the Wayland
+compositor (`$WAYLAND_DISPLAY`) exits, instead of outliving the session. In
+this mode it inherits the compositor environment, so programs spawned via
+ShowItems find `PATH` and `WAYLAND_DISPLAY` without further configuration.
+
+Starting it from a login shell profile (e.g. `.zprofile`) before the
+compositor is possible but not recommended: `--exit-with-session` cannot be
+used there, since the compositor is not running yet, the session bus might not
+exist yet (e.g. when the compositor is started via `dbus-run-session`), and
+spawned programs would not inherit `WAYLAND_DISPLAY`.
+
 #### Sway
 
-If you are using sway you can add:
+If you are not using the systemd unit, add to the sway configuration:
+
+`exec aperi-session --exit-with-session`
+
+Use `exec`, not `exec_always`, to not start it again at each config reload
+(the single instance check makes it harmless anyway).
+
+If you are using the systemd unit you can add:
 
 `exec dbus-update-activation-environment --systemd LANG PATH`
 
 at the end of the configuration file to export LANG and PATH env variables if
 needed.
-
-You can also add
-
-`exec aperi_fm1`
-
-if you want to handle the ShowItems requests via `aperi`.
 
 ## Troubleshooting
 
@@ -273,10 +324,11 @@ filetype associations".
 
 #### Systemd service to wipe wine file associations
 
-Aperi comes with an optional systemd service that remove the .desktop files wine
-creates as soon as they are created. The executable is called wipewine and a sample
-unit is present in the extra/ directory. Check the executable path in the sample unit,
-and change it if needed. Install/enable/start the unit as a user service.
+`aperi-session` (see [Session helper](#session-helper-aperi-session)) removes
+the `wine-extension*.desktop` and `wine-protocol*.desktop` files wine creates in
+`$XDG_DATA_HOME/applications` (default `~/.local/share/applications`) as soon as
+they are created, and those already present at startup. Run it with the sample
+`extra/aperi-session.service` user unit.
 
 ## Author
 

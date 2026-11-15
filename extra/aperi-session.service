@@ -1,0 +1,17 @@
+[Unit]
+Description=Aperi session helper (FileManager1 D-Bus service, wine associations wiper)
+PartOf=graphical-session.target
+After=graphical-session.target
+Requisite=graphical-session.target
+
+[Service]
+Type=notify
+# Append --no-fm1 or --no-wipewine to disable a feature
+ExecStart=%h/bin/aperi-session
+Restart=on-failure
+# Programs spawned via ShowItems (e.g. a terminal) must outlive a restart
+# or stop of this unit
+KillMode=process
+
+[Install]
+WantedBy=graphical-session.target

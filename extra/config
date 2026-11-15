@@ -29,7 +29,7 @@ test.2="%foo" bar
 /=nautilus
 
 # handle special aperi schema for D-Bus org.freedesktop.Filemanager1 ShowItems
-# requests by aperi_fm1
+# requests by aperi-session
 aperi-show-items://=show_items.py
 
 # Open all non previously matched files/uris with app-chooser

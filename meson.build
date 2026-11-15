@@ -10,16 +10,15 @@ src_aperi = ['aperi.c']
 executable('aperi', sources: src_aperi, install : true)
 
 dbus_dep = dependency('dbus-1', required: get_option('dbus'))
+session_args = []
 if dbus_dep.found()
   src_app_chooser = ['app-chooser.c']
   executable('app-chooser', sources: src_app_chooser,
              dependencies: dbus_dep, install : true)
-
-  src_fm1 = ['aperi_fm1.c']
-  executable('aperi_fm1', sources: src_fm1,
-             dependencies: dbus_dep, install : true)
+  session_args += ['-DHAVE_DBUS']
 endif
 
-src_wipewine = ['wipewine.c']
-executable('wipewine', sources: src_wipewine,
+src_session = ['aperi-session.c']
+executable('aperi-session', sources: src_session,
+           dependencies: dbus_dep, c_args: session_args,
            install : true)

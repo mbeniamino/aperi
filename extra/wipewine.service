@@ -1,9 +1,0 @@
-[Unit]
-Description=Wine file associations wiper
-
-[Service]
-Type=notify
-ExecStart=%h/bin/wipewine
-
-[Install]
-WantedBy=default.target
