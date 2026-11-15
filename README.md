@@ -67,11 +67,13 @@ test.2=%echo "This is a test showing a verbatim %% sign"
 
 Rules are checked in order. The first matching rule will be used.
 
-The `extra` directory contains a sample configuration file to be copied to
-`~/.config/aperi/config` and modified as needed;
+A sample configuration file is installed as
+`<prefix>/share/doc/aperi/examples/config` (`extra/config` in the source tree):
+copy it to `~/.config/aperi/config` and modify it as needed (see [Setting up a
+user account](#setting-up-a-user-account)).
 
 In addition to the config file, aperi searches for executable files named as
-its argument extension inside the `~/.config/aperi/config/wrappers` directory.
+its argument extension inside the `~/.config/aperi/wrappers` directory.
 
 If one is found, that file is invoked with a single argument that is the full
 path to the aperi argument.
@@ -115,37 +117,113 @@ To manually compile `Aperi`, `app-chooser` and `aperi-session` you can use somet
 
 ## Installation
 
-`meson install -C build` installs the executables, the `aperi-session`
-systemd user unit, the `aperi.desktop` entry and the documentation and
-examples (in `share/doc/aperi`). The global configuration directory is
-`<sysconfdir>/aperi/` (`/etc/aperi/` with the `/usr` prefix).
+Aperi can be installed system wide or for a single user. Both install the
+same files under a prefix (`/usr` or `~/.local` in the examples below):
 
-### Arch Linux
+| File                                    | Purpose                                  |
+|-----------------------------------------|------------------------------------------|
+| `<prefix>/bin/aperi`, `app-chooser`, `aperi-session` | executables                 |
+| `<prefix>/share/applications/aperi.desktop` | desktop entry, needed by `mimeapps.list` |
+| systemd user unit `aperi-session.service` | starts `aperi-session` (see below)     |
+| `<prefix>/share/doc/aperi/examples/`    | example `config`, `mimeapps.list`, `show_items.py` |
 
-A `PKGBUILD` is in the top level directory: from there run `makepkg -si`.
+The global configuration directory is `<sysconfdir>/aperi/` (`/etc/aperi/`
+with the `/usr` prefix): it is used only by users who don't have a
+`~/.config/aperi/` directory.
 
-`aperi` can be used as a standalone executable to open resources from the
-command line. It's also suggested to put `app-chooser` in PATH and use the rule
-`*=app-chooser` at the end of the config file to have a handy way to open all
-files not associated with anything else.
+### System wide
 
-Other programs implement application associations in different ways.
-For a very good overview see [this
-article](https://wiki.archlinux.org/title/Default_applications) in the Arch
-Wiki. To integrate `aperi` with other programs read below.
+On Arch Linux, a `PKGBUILD` is in the top level directory: from there run
+`makepkg -si`.
+
+On other distributions:
+
+```
+meson setup --prefix /usr --buildtype release build
+meson compile -C build
+sudo meson install -C build
+```
+
+The user unit is installed in the systemd user unit directory (usually
+`/usr/lib/systemd/user`).
+
+### Single user
+
+Install in `~/.local` (make sure `~/.local/bin` is in your `PATH`). The unit
+directory must be passed explicitly, since systemd looks for user units in
+`~/.local/share/systemd/user`:
+
+```
+meson setup --prefix ~/.local --buildtype release \
+    -Dsystemduserunitdir="$HOME/.local/share/systemd/user" build
+meson compile -C build
+meson install -C build
+```
+
+If you prefer to copy the executables from the `build` directory to a
+directory of your choice, the example files are in the `extra` directory of
+the source tree and the unit is generated in `build/aperi-session.service`:
+copy them where needed, and fix the `ExecStart` path in the unit.
+
+## Setting up a user account
+
+In the following, `<examples>` is `<prefix>/share/doc/aperi/examples` (e.g.
+`/usr/share/doc/aperi/examples` or `~/.local/share/doc/aperi/examples`), or
+the `extra` directory of the source tree.
+
+1. Create the configuration (see [Configuration](#configuration)), starting
+   from the example and adapting the rules to your programs:
+
+   ```
+   mkdir -p ~/.config/aperi
+   cp <examples>/config ~/.config/aperi/config
+   ```
+
+   A handy last rule is `/*=app-chooser`, to choose an application for all
+   files not associated with anything else.
+
+2. Make aperi the default application for other programs, as described in
+   [xdg-open](#xdg-open) and [GIO's GAppInfo](#gios-gappinfo). Other programs
+   implement application associations in different ways: for a very good
+   overview see [this
+   article](https://wiki.archlinux.org/title/Default_applications) in the
+   Arch Wiki.
+
+3. Start `aperi-session` at login, with the systemd user unit or from the
+   compositor configuration (see [Session
+   helper](#session-helper-aperi-session)).
+
+4. If you use the FileManager1 service of `aperi-session`, add a rule for
+   the `aperi-show-items://` schema (see [org.freedesktop.FileManager1 D-Bus
+   interface](#orgfreedesktopfilemanager1-d-bus-interface)), for example:
+
+   ```
+   install -Dm755 <examples>/show_items.py ~/.local/bin/show_items.py
+   echo 'aperi-show-items://=show_items.py' >> ~/.config/aperi/config
+   ```
+
+   Rules are matched in order: put it before any catch all rule.
+
+## Integration with other programs
 
 ### xdg-open
 
 Put a link to `aperi` named `xdg-open` in your path in a directory with higher
-precedence than the one containing the system `xdg-open`. This will use `aperi`
-to open url and files in place of `xdg-open` for example for opening files
-downloaded by chrome/chromium.
+precedence than the one containing the system `xdg-open`, e.g.:
+
+```
+ln -s "$(command -v aperi)" ~/.local/bin/xdg-open
+```
+
+This will use `aperi` to open url and files in place of `xdg-open` for example
+for opening files downloaded by chrome/chromium.
 
 ### GIO's GAppInfo
 
-Copy `aperi.desktop` from the `extra` directory to `~/.local/share/applications`.
-Copy the file `mimeapps.list` from the `extra` directory in the xdg user config
-directory (usually `~/.config`).
+`aperi.desktop` must be installed (see [Installation](#installation)). Copy
+the file `mimeapps.list` from `<examples>` in the xdg user config directory
+(usually `~/.config`). If you already have a `mimeapps.list`, merge the two
+files instead.
 
 This file associates most known mime types with `aperi`.
 
@@ -202,11 +280,12 @@ bare minimal implementation of this D-Bus service that just implements the
 ShowItems method. When invoked, the service expects to find `aperi` in the path
 and will spawn `aperi` passing a URI in the form
 `aperi-show-items://<percent encoded path>`. You can configure `aperi` to handle
-these requests as usual. In the `extra` folder you can find an example
+these requests as usual. In `<examples>` you can find an example
 script (`show_items.py`) that can handle such requests. This script copies the
 item path to the clipboard (already escaped for the shell) and spawn a
 terminal, in this case `alacritty`, in the folder containing the file. It then
-launch a `zsh` shell.
+launch a `zsh` shell: adapt it to your terminal and shell. It needs `python`
+and `wl-clipboard`.
 
 ### Session helper (aperi-session)
 
@@ -220,9 +299,8 @@ which can be disabled from the command line:
   wine file associations](#systemd-service-to-wipe-wine-file-associations);
   `-W`/`--no-wipewine` to disable).
 
-`meson install` (and the Arch Linux package) installs the user unit
-`aperi-session.service` in the systemd user unit directory (usually
-`/usr/lib/systemd/user`). Enable it with:
+The user unit `aperi-session.service` is installed together with aperi (see
+[Installation](#installation)). Enable it with:
 
 ```
 systemctl --user daemon-reload
@@ -238,10 +316,8 @@ ExecStart=
 ExecStart=/usr/bin/aperi-session --no-wipewine
 ```
 
-If you don't install aperi system wide, the unit with the right executable
-path is generated in the build directory (`build/aperi-session.service`):
-copy it to `~/.config/systemd/user/`. Use `-Dsystemduserunitdir=no` to not
-install the unit at all.
+(use the path of your installation, e.g. `%h/.local/bin/aperi-session`). Use
+the meson option `-Dsystemduserunitdir=no` to not install the unit at all.
 
 The unit is bound to `graphical-session.target`, so your compositor or desktop
 must start that target (most desktop environments do; with sway you can use

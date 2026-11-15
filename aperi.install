@@ -6,6 +6,7 @@ _session_hint() {
     or, without systemd, from the compositor configuration, e.g. for sway:
       exec aperi-session --exit-with-session
     Example configuration files are in /usr/share/doc/aperi/examples.
+    See "Setting up a user account" in /usr/share/doc/aperi/README.md.
 MSG
 }
 
