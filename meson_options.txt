@@ -1,1 +1,4 @@
-option('dbus', type: 'feature', value: 'auto')
+option('dbus', type: 'feature', value: 'auto',
+       description: 'Build app-chooser and the FileManager1 service of aperi-session')
+option('systemduserunitdir', type: 'string', value: '',
+       description: 'Directory for the systemd user unit (empty: autodetect, "no": do not install)')

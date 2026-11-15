@@ -1,0 +1,25 @@
+_session_hint() {
+  cat <<'MSG'
+==> aperi-session (FileManager1 D-Bus service and wine associations wiper)
+    can be started at login with the systemd user unit:
+      systemctl --user enable --now aperi-session.service
+    or, without systemd, from the compositor configuration, e.g. for sway:
+      exec aperi-session --exit-with-session
+    Example configuration files are in /usr/share/doc/aperi/examples.
+MSG
+}
+
+post_install() {
+  _session_hint
+}
+
+post_upgrade() {
+  # aperi_fm1 and wipewine were merged into aperi-session in 0.11.0
+  if [ "$(vercmp "$2" 0.11.0)" -lt 0 ]; then
+    cat <<'MSG'
+==> aperi_fm1 and wipewine have been replaced by aperi-session.
+    Update your sway config and remove any wipewine.service user unit.
+MSG
+    _session_hint
+  fi
+}

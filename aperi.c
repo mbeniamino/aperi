@@ -10,7 +10,7 @@
 #include <errno.h>
 #include "config.h"
 
-const char* GLOBAL_CONFIG_DIR = "/etc/aperi/";
+const char* GLOBAL_CONFIG_DIR = SYSCONFDIR "/aperi/";
 
 // Argument types (file, directory or uri)
 typedef enum ArgType { ATFile, ATDir, ATURI } ArgType;

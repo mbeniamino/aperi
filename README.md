@@ -115,6 +115,15 @@ To manually compile `Aperi`, `app-chooser` and `aperi-session` you can use somet
 
 ## Installation
 
+`meson install -C build` installs the executables, the `aperi-session`
+systemd user unit, the `aperi.desktop` entry and the documentation and
+examples (in `share/doc/aperi`). The global configuration directory is
+`<sysconfdir>/aperi/` (`/etc/aperi/` with the `/usr` prefix).
+
+### Arch Linux
+
+A `PKGBUILD` is in the top level directory: from there run `makepkg -si`.
+
 `aperi` can be used as a standalone executable to open resources from the
 command line. It's also suggested to put `app-chooser` in PATH and use the rule
 `*=app-chooser` at the end of the config file to have a handy way to open all
@@ -211,14 +220,28 @@ which can be disabled from the command line:
   wine file associations](#systemd-service-to-wipe-wine-file-associations);
   `-W`/`--no-wipewine` to disable).
 
-A sample unit, `aperi-session.service`, is in the `extra/` directory. Check the
-executable path (and add the options you want) in `ExecStart`, then install it
-in `~/.config/systemd/user/` and enable it:
+`meson install` (and the Arch Linux package) installs the user unit
+`aperi-session.service` in the systemd user unit directory (usually
+`/usr/lib/systemd/user`). Enable it with:
 
 ```
 systemctl --user daemon-reload
 systemctl --user enable --now aperi-session.service
 ```
+
+To pass options (e.g. `--no-wipewine`) override `ExecStart` with
+`systemctl --user edit aperi-session.service`:
+
+```
+[Service]
+ExecStart=
+ExecStart=/usr/bin/aperi-session --no-wipewine
+```
+
+If you don't install aperi system wide, the unit with the right executable
+path is generated in the build directory (`build/aperi-session.service`):
+copy it to `~/.config/systemd/user/`. Use `-Dsystemduserunitdir=no` to not
+install the unit at all.
 
 The unit is bound to `graphical-session.target`, so your compositor or desktop
 must start that target (most desktop environments do; with sway you can use
@@ -327,8 +350,8 @@ filetype associations".
 `aperi-session` (see [Session helper](#session-helper-aperi-session)) removes
 the `wine-extension*.desktop` and `wine-protocol*.desktop` files wine creates in
 `$XDG_DATA_HOME/applications` (default `~/.local/share/applications`) as soon as
-they are created, and those already present at startup. Run it with the sample
-`extra/aperi-session.service` user unit.
+they are created, and those already present at startup. Run it with the
+`aperi-session.service` user unit.
 
 ## Author
 

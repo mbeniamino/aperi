@@ -2,5 +2,6 @@
 #define VERSION_H
 
 #define VERSION "@version@"
+#define SYSCONFDIR "@sysconfdir@"
 
 #endif

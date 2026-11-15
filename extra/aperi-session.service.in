@@ -7,7 +7,7 @@ Requisite=graphical-session.target
 [Service]
 Type=notify
 # Append --no-fm1 or --no-wipewine to disable a feature
-ExecStart=%h/bin/aperi-session
+ExecStart=@bindir@/aperi-session
 Restart=on-failure
 # Programs spawned via ShowItems (e.g. a terminal) must outlive a restart
 # or stop of this unit
